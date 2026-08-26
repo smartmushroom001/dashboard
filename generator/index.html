@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🍄 Fake Data Generator</title>
+    <title>🍄 Fake Data Generator with Sustainability</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -101,6 +101,7 @@
         .log-container .log-entry.error { color: #e74c3c; }
         .log-container .log-entry.info { color: #3498db; }
         .log-container .log-entry.warning { color: #f39c12; }
+        .log-container .log-entry.sustain { color: #9b59b6; }
         .stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -118,6 +119,7 @@
         .stat-item .value.green { color: #2ecc71; }
         .stat-item .value.blue { color: #3498db; }
         .stat-item .value.red { color: #e74c3c; }
+        .stat-item .value.purple { color: #9b59b6; }
         .progress-bar {
             width: 100%;
             height: 4px;
@@ -142,6 +144,16 @@
         }
         .status-badge.running { background: #2ecc71; color: #000; }
         .status-badge.stopped { background: #555; color: #fff; }
+        .sustainability-summary {
+            background: rgba(155,89,182,0.05);
+            border: 1px solid rgba(155,89,182,0.1);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 10px;
+            font-size: 0.8rem;
+        }
+        .sustainability-summary .label { color: #888; }
+        .sustainability-summary .value { color: #9b59b6; font-weight: bold; }
         @media (max-width: 768px) {
             .config-grid { grid-template-columns: 1fr; }
             .btn-group { flex-direction: column; }
@@ -152,8 +164,8 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🍄 Fake Data Generator</h1>
-            <p>Simulate sensor data for your Mushroom Cultivation Dashboard</p>
+            <h1>🍄 Fake Data Generator with Sustainability</h1>
+            <p>Simulate sensor data + sustainability metrics for your dashboard</p>
         </div>
 
         <div class="card">
@@ -182,6 +194,14 @@
                         <option value="true">Yes (Random)</option>
                     </select>
                 </div>
+                <div class="config-item">
+                    <label>Water Flow Rate (mL/s)</label>
+                    <input type="number" id="waterFlowRate" value="2.5" min="0.5" max="10" step="0.1">
+                </div>
+                <div class="config-item">
+                    <label>Fan Power (W)</label>
+                    <input type="number" id="fanPower" value="15" min="5" max="50">
+                </div>
             </div>
 
             <div class="btn-group">
@@ -197,17 +217,23 @@
                 <div class="stat-item"><div class="label">Sent</div><div class="value green" id="sentCount">0</div></div>
                 <div class="stat-item"><div class="label">Successful</div><div class="value blue" id="successCount">0</div></div>
                 <div class="stat-item"><div class="label">Failed</div><div class="value red" id="failCount">0</div></div>
-                <div class="stat-item"><div class="label">Status</div><div class="value" id="lastStatus" style="color:#f39c12;">Ready</div></div>
+                <div class="stat-item"><div class="label">Water Used</div><div class="value purple" id="totalWater">0.00 L</div></div>
             </div>
 
             <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+            <div class="sustainability-summary" id="sustainabilitySummary">
+                <span class="label">🌱 Sustainability Summary:</span>
+                <span class="value" id="sustainSummary">Waiting for data...</span>
+            </div>
         </div>
 
         <div class="card">
             <h2>📋 Log</h2>
             <div class="log-container" id="logContainer">
-                <div class="log-entry info">🔄 Ready to generate fake data...</div>
+                <div class="log-entry info">🔄 Ready to generate fake data with sustainability...</div>
                 <div class="log-entry info">📝 Apps Script URL: https://script.google.com/macros/s/AKfycbymCE9xnG42hiZa6UfqNzyy1FQcz2zPEl5EK_3LuWFRkxHSkWRNNyPowtnsUtotmRHZfg/exec</div>
+                <div class="log-entry sustain">🌱 Sustainability metrics will be calculated from mist/fan runtime</div>
             </div>
         </div>
     </div>
@@ -220,6 +246,12 @@
         let successCount = 0;
         let failCount = 0;
 
+        // Sustainability accumulators
+        let totalWaterUsed = 0;
+        let totalEnergyUsed = 0;
+        let cumulativeYield = 0;
+        let dataPointCount = 0;
+
         const logContainer = document.getElementById('logContainer');
         const startBtn = document.getElementById('startBtn');
         const stopBtn = document.getElementById('stopBtn');
@@ -227,12 +259,15 @@
         const sentCountEl = document.getElementById('sentCount');
         const successCountEl = document.getElementById('successCount');
         const failCountEl = document.getElementById('failCount');
-        const lastStatusEl = document.getElementById('lastStatus');
+        const totalWaterEl = document.getElementById('totalWater');
         const progressFill = document.getElementById('progressFill');
+        const sustainSummary = document.getElementById('sustainSummary');
         const scriptUrlInput = document.getElementById('scriptUrl');
         const intervalInput = document.getElementById('interval');
         const varianceSelect = document.getElementById('variance');
         const includeErrorsSelect = document.getElementById('includeErrors');
+        const waterFlowRateInput = document.getElementById('waterFlowRate');
+        const fanPowerInput = document.getElementById('fanPower');
 
         // ===== LOGGING =====
         function addLog(message, type = 'info') {
@@ -256,10 +291,15 @@
         function generateFakeData() {
             const variance = varianceSelect.value;
             const includeErrors = includeErrorsSelect.value === 'true';
+            const waterFlowRate = parseFloat(waterFlowRateInput.value) || 2.5;
+            const fanPower = parseFloat(fanPowerInput.value) || 15;
             let mult = variance === 'low' ? 0.3 : variance === 'high' ? 2.0 : 1.0;
 
             const data = {};
+            let totalMistRuntime = 0;
+            let totalFanRuntime = 0;
 
+            // Generate sensor data for 3 zones
             for (let i = 1; i <= 3; i++) {
                 const baseTemp = 25 + (Math.random() - 0.5) * 2 * mult;
                 const baseHum = 85 + (Math.random() - 0.5) * 8 * mult;
@@ -272,7 +312,44 @@
                 data[`z${i}_mist`] = data[`z${i}_hum`] < 83 ? 1 : 0;
                 data[`z${i}_exhaust`] = (data[`z${i}_co2`] > 800 || data[`z${i}_temp`] > 30) ? 1 : 0;
                 data[`z${i}_error`] = (includeErrors && Math.random() < 0.03) ? 1 : 0;
+
+                // Track runtime for sustainability (assuming each data point = 10 seconds)
+                totalMistRuntime += data[`z${i}_mist`] * 10;
+                totalFanRuntime += data[`z${i}_exhaust`] * 10;
             }
+
+            // ===== SUSTAINABILITY CALCULATIONS =====
+            // Water used (L) = mist runtime (s) * flow rate (mL/s) / 1000
+            const waterUsed = (totalMistRuntime * waterFlowRate) / 1000.0;
+
+            // Energy used (kWh) = fan runtime (s) / 3600 * fan power (W) / 1000
+            const fanHours = totalFanRuntime / 3600.0;
+            const energyUsed = fanHours * fanPower / 1000.0;
+
+            // Simulate yield - gradually increasing over time
+            dataPointCount++;
+            // Yield starts at 0 and slowly increases up to ~2kg
+            cumulativeYield = Math.min(2.0, cumulativeYield + (Math.random() * 0.02));
+            const yieldKg = Math.round(cumulativeYield * 100) / 100;
+
+            // Efficiency calculations
+            const waterEfficiency = yieldKg > 0 ? yieldKg / (waterUsed + 0.001) : 0;
+            const energyEfficiency = yieldKg > 0 ? yieldKg / (energyUsed + 0.001) : 0;
+            const specificWater = yieldKg > 0 ? waterUsed / (yieldKg + 0.001) : 0;
+            const specificEnergy = yieldKg > 0 ? energyUsed / (yieldKg + 0.001) : 0;
+
+            // Accumulate totals
+            totalWaterUsed += waterUsed;
+            totalEnergyUsed += energyUsed;
+
+            // Add sustainability fields to data
+            data['water_used'] = Math.round(waterUsed * 100) / 100;
+            data['energy_used'] = Math.round(energyUsed * 100) / 100;
+            data['yield_kg'] = yieldKg;
+            data['water_efficiency'] = Math.round(waterEfficiency * 100) / 100;
+            data['energy_efficiency'] = Math.round(energyEfficiency * 100) / 100;
+            data['specific_water'] = Math.round(specificWater * 100) / 100;
+            data['specific_energy'] = Math.round(specificEnergy * 100) / 100;
 
             return data;
         }
@@ -297,10 +374,13 @@
         // ===== SEND SINGLE =====
         async function sendSingleData() {
             const data = generateFakeData();
+
+            // Build log message
             let logMsg = '📤 Sending: ';
             for (let i = 1; i <= 3; i++) {
                 logMsg += `Z${i}: ${data[`z${i}_temp`]}°C, ${data[`z${i}_hum`]}%, ${data[`z${i}_co2`]}ppm `;
             }
+            logMsg += `| 💧${data.water_used}L ⚡${data.energy_used}kWh`;
             addLog(logMsg, 'info');
 
             const success = await sendDataToGoogleSheets(data);
@@ -308,17 +388,16 @@
             sentCount++;
             if (success) {
                 successCount++;
-                addLog('✅ Data sent successfully!', 'success');
-                lastStatusEl.textContent = '✅ Success';
-                lastStatusEl.style.color = '#2ecc71';
+                addLog('✅ Data + sustainability sent successfully!', 'success');
+                // Update sustainability summary
+                sustainSummary.textContent = `Water: ${totalWaterUsed.toFixed(2)}L | Energy: ${totalEnergyUsed.toFixed(3)}kWh | Yield: ${cumulativeYield.toFixed(2)}kg`;
             } else {
                 failCount++;
                 addLog('❌ Failed to send data (CORS/network)', 'error');
-                lastStatusEl.textContent = '❌ Failed';
-                lastStatusEl.style.color = '#e74c3c';
             }
 
             updateStats();
+            updateSustainStats();
         }
 
         // ===== START GENERATOR =====
@@ -338,6 +417,7 @@
             statusBadge.className = 'status-badge running';
 
             addLog(`▶️ Generator started - sending every ${interval/1000} seconds`, 'info');
+            addLog('🌱 Sustainability metrics will be calculated from mist/fan runtime', 'sustain');
 
             sendSingleData();
             intervalId = setInterval(sendSingleData, interval);
@@ -356,7 +436,7 @@
             statusBadge.textContent = '⏹️ Stopped';
             statusBadge.className = 'status-badge stopped';
 
-            addLog('⏹️ Generator stopped', 'warning');
+            addLog(`⏹️ Generator stopped. Total Water: ${totalWaterUsed.toFixed(2)}L, Energy: ${totalEnergyUsed.toFixed(3)}kWh`, 'warning');
         }
 
         // ===== UPDATE STATS =====
@@ -370,6 +450,10 @@
             progressFill.style.width = progress + '%';
         }
 
+        function updateSustainStats() {
+            totalWaterEl.textContent = totalWaterUsed.toFixed(2) + ' L';
+        }
+
         // ===== KEYBOARD SHORTCUTS =====
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !isRunning) startGenerator();
@@ -377,9 +461,10 @@
         });
 
         // ===== INIT =====
-        addLog('💡 Press "Start" to begin sending fake data', 'info');
+        addLog('💡 Press "Start" to begin sending fake data with sustainability', 'info');
         addLog('💡 Press "Send One" to send a single data point', 'info');
         addLog('💡 Tip: Use Enter key to start, Escape to stop', 'info');
+        addLog('🌱 Sustainability metrics: Water Usage, Energy Usage, Efficiency', 'sustain');
     </script>
 </body>
 </html>
