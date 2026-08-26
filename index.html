@@ -466,16 +466,15 @@
 
             <!-- ===== SECTION 2: SUSTAINABILITY ===== -->
             <div id="section-sustainability" class="section">
-                <div class="section-title">🌱 Sustainability Tracking <span class="badge">Resource Efficiency</span></div>
+                <div class="section-title">🌱 Sustainability Tracking <span class="badge">Calculated Metrics</span></div>
                 <div class="sustainability-section">
                     <div class="sustainability-grid" id="sustainabilityGrid">
                         <!-- Filled by JavaScript -->
                     </div>
                     <div class="sustainability-note">
-                        💡 Sustainability metrics require additional sensors:
-                        <span class="highlight">Water Flow Meter</span> and
-                        <span class="highlight">Energy Monitoring (Current Sensor)</span>
-                        <br>Currently showing simulated values for dashboard demonstration.
+                        💡 Sustainability metrics are <span class="highlight">calculated/simulated</span> based on mist and fan runtime.
+                        <br>🔹 Water Flow Rate: <span class="highlight">2.5 mL/s</span> | 🔹 Fan Power: <span class="highlight">15W</span>
+                        <br>📝 Enter Yield (kg) in the <span class="highlight">Configuration</span> tab to see efficiency metrics.
                     </div>
                 </div>
             </div>
@@ -524,6 +523,12 @@
                         <div class="config-item"><label>Fan OFF Temp</label><div><input type="number" id="tempFanOff" value="28" min="18" max="38"><span class="unit">°C</span></div></div>
                         <div class="config-item"><label>MQ135 R0</label><div><input type="number" id="mq135_r0" value="15" min="5" max="30" step="0.5"><span class="unit">kΩ</span></div></div>
                     </div>
+                    <div class="config-group">
+                        <h4>🌱 Sustainability</h4>
+                        <div class="config-item"><label>Water Flow Rate</label><div><input type="number" id="waterFlowRate" value="2.5" min="0.5" max="10" step="0.1"><span class="unit">mL/s</span></div></div>
+                        <div class="config-item"><label>Fan Power</label><div><input type="number" id="fanPower" value="15" min="5" max="50"><span class="unit">W</span></div></div>
+                        <div class="config-item"><label>Yield (kg)</label><div><input type="number" id="yieldKg" value="0" min="0" max="100" step="0.5"><span class="unit">kg</span></div></div>
+                    </div>
                 </div>
                 <div class="config-actions">
                     <button class="config-btn save" onclick="saveConfig()">💾 Save Configuration</button>
@@ -548,6 +553,11 @@
         let updateInterval = null;
         let allData = [];
         let currentParam = 'temp';
+
+        // Sustainability accumulators (persistent across updates)
+        let cumulativeWaterUsed = 0;
+        let cumulativeEnergyUsed = 0;
+        let lastDataLength = 0;
 
         // ===== DATE FORMATTER =====
         const dateFormatter = new Intl.DateTimeFormat('en-MY', {
@@ -602,6 +612,12 @@
                 if (data && data.table && data.table.rows && data.table.rows.length > 1) {
                     const parsedData = parseGVizData(data);
                     if (parsedData.length > 0) {
+                        // Check if new data added
+                        if (parsedData.length > lastDataLength) {
+                            // Calculate sustainability for new data
+                            calculateSustainability(parsedData);
+                            lastDataLength = parsedData.length;
+                        }
                         allData = parsedData;
                         updateDashboard(parsedData);
                         document.getElementById('loading').style.display = 'none';
@@ -621,7 +637,7 @@
 
             rows.forEach((row, rowIndex) => {
                 if (rowIndex === 0) return;
-                if (!row.c || row.c.length < 22) return;
+                if (!row.c || row.c.length < 29) return;
 
                 const getVal = (idx) => parseFloat(row.c[idx]?.v) || 0;
                 const getStr = (idx) => row.c[idx]?.v || '';
@@ -643,11 +659,87 @@
                     z2_temp: getVal(8), z2_hum: getVal(9), z2_co2: getVal(10),
                     z2_water: getVal(11), z2_mist: getVal(12), z2_exhaust: getVal(13), z2_error: getVal(14),
                     z3_temp: getVal(15), z3_hum: getVal(16), z3_co2: getVal(17),
-                    z3_water: getVal(18), z3_mist: getVal(19), z3_exhaust: getVal(20), z3_error: getVal(21)
+                    z3_water: getVal(18), z3_mist: getVal(19), z3_exhaust: getVal(20), z3_error: getVal(21),
+                    // Sustainability columns (if available from sheet)
+                    water_used: getVal(22),
+                    energy_used: getVal(23),
+                    yield_kg: getVal(24),
+                    water_efficiency: getVal(25),
+                    energy_efficiency: getVal(26),
+                    specific_water: getVal(27),
+                    specific_energy: getVal(28)
                 });
             });
 
             return parsedData;
+        }
+
+        // ===== CALCULATE SUSTAINABILITY =====
+        function calculateSustainability(data) {
+            // Get configuration values
+            const waterFlowRate = parseFloat(document.getElementById('waterFlowRate')?.value) || 2.5; // mL/s
+            const fanPower = parseFloat(document.getElementById('fanPower')?.value) || 15; // Watts
+            const yieldKg = parseFloat(document.getElementById('yieldKg')?.value) || 0;
+
+            // Calculate total mist and fan runtime from the data
+            let totalMistRuntime = 0;
+            let totalFanRuntime = 0;
+
+            // We assume each reading represents a 10-second interval
+            const intervalSeconds = 10; // Each data point is ~10 seconds apart
+
+            for (let i = 0; i < data.length; i++) {
+                const mistCount = (data[i].z1_mist || 0) + (data[i].z2_mist || 0) + (data[i].z3_mist || 0);
+                const fanCount = (data[i].z1_exhaust || 0) + (data[i].z2_exhaust || 0) + (data[i].z3_exhaust || 0);
+                totalMistRuntime += mistCount * intervalSeconds;
+                totalFanRuntime += fanCount * intervalSeconds;
+            }
+
+            // Calculate water usage (L)
+            const waterUsed = (totalMistRuntime * waterFlowRate) / 1000.0; // Convert mL to Liters
+
+            // Calculate energy usage (kWh)
+            const fanHours = totalFanRuntime / 3600.0; // Convert seconds to hours
+            const energyUsed = fanHours * fanPower / 1000.0; // Convert W to kW
+
+            // Calculate efficiency metrics
+            const waterEfficiency = yieldKg > 0 ? yieldKg / (waterUsed + 0.001) : 0;
+            const energyEfficiency = yieldKg > 0 ? yieldKg / (energyUsed + 0.001) : 0;
+            const specificWater = yieldKg > 0 ? waterUsed / (yieldKg + 0.001) : 0;
+            const specificEnergy = yieldKg > 0 ? energyUsed / (yieldKg + 0.001) : 0;
+
+            // Store cumulative values
+            cumulativeWaterUsed = waterUsed;
+            cumulativeEnergyUsed = energyUsed;
+
+            // Update the sustainability display
+            updateSustainabilityDisplay(waterUsed, energyUsed, yieldKg, waterEfficiency, energyEfficiency, specificWater, specificEnergy);
+        }
+
+        // ===== UPDATE SUSTAINABILITY DISPLAY =====
+        function updateSustainabilityDisplay(waterUsed, energyUsed, yieldKg, waterEfficiency, energyEfficiency, specificWater, specificEnergy) {
+            const metrics = [
+                { label: 'Water Use Efficiency', value: waterEfficiency, unit: 'kg/L', color: 'green' },
+                { label: 'Energy Use Efficiency', value: energyEfficiency, unit: 'kg/kWh', color: 'blue' },
+                { label: 'Specific Water', value: specificWater, unit: 'L/kg', color: 'orange' },
+                { label: 'Specific Energy', value: specificEnergy, unit: 'kWh/kg', color: 'purple' },
+                { label: 'Total Water Used', value: waterUsed, unit: 'L', color: 'blue' },
+                { label: 'Total Energy Used', value: energyUsed, unit: 'kWh', color: 'orange' },
+                { label: 'Yield', value: yieldKg, unit: 'kg', color: 'green' }
+            ];
+
+            let html = '';
+            metrics.forEach(m => {
+                html += `
+                    <div class="sustainability-card">
+                        <div class="label">${m.label}</div>
+                        <div class="value ${m.color}">${m.value.toFixed(2)}</div>
+                        <div class="unit">${m.unit}</div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('sustainabilityGrid').innerHTML = html;
         }
 
         // ===== UPDATE DASHBOARD =====
@@ -745,66 +837,8 @@
             document.getElementById('rowCount').textContent = `Records: ${data.length}`;
             document.getElementById('lastUpdate').textContent = `Last update: ${new Date().toLocaleString()}`;
 
-            updateSustainability(latest);
+            // Update chart
             updateChart(data, currentParam);
-        }
-
-        // ===== UPDATE SUSTAINABILITY =====
-        function updateSustainability(latest) {
-            // Calculate sustainability metrics from available data
-            // Note: These require water flow meter and energy monitoring hardware
-            // Currently using simulated values based on mist/fan activity
-
-            // Calculate total mist runtime from the data (approximate)
-            const mistCount = (latest.z1_mist || 0) + (latest.z2_mist || 0) + (latest.z3_mist || 0);
-            const exhaustCount = (latest.z1_exhaust || 0) + (latest.z2_exhaust || 0) + (latest.z3_exhaust || 0);
-
-            // Simulated values (replace with real sensor data when available)
-            // Water flow rate: 2.5 mL/s, Fan power: 15W
-            const waterFlowRate = 2.5; // mL/s
-            const fanPower = 15.0; // Watts
-            const mistRuntimeSeconds = mistCount * 10; // Approximate runtime in seconds
-            const fanRuntimeSeconds = exhaustCount * 10; // Approximate runtime in seconds
-
-            // Calculate water usage (L)
-            const waterUsed = (mistRuntimeSeconds * waterFlowRate) / 1000.0; // Convert to Liters
-
-            // Calculate energy usage (kWh)
-            const energyUsed = (fanRuntimeSeconds / 3600.0) * fanPower / 1000.0; // kWh
-
-            // Yield (user input or estimated)
-            const yieldKg = 0; // Set by user or from sensor
-
-            // Efficiency calculations
-            const waterEfficiency = yieldKg > 0 ? yieldKg / (waterUsed + 0.001) : 0;
-            const energyEfficiency = yieldKg > 0 ? yieldKg / (energyUsed + 0.001) : 0;
-            const specificWater = yieldKg > 0 ? waterUsed / (yieldKg + 0.001) : 0;
-            const specificEnergy = yieldKg > 0 ? energyUsed / (yieldKg + 0.001) : 0;
-
-            const metrics = [
-                { label: 'Water Use Efficiency', value: waterEfficiency, unit: 'kg/L', color: 'green' },
-                { label: 'Energy Use Efficiency', value: energyEfficiency, unit: 'kg/kWh', color: 'blue' },
-                { label: 'Specific Water', value: specificWater, unit: 'L/kg', color: 'orange' },
-                { label: 'Specific Energy', value: specificEnergy, unit: 'kWh/kg', color: 'purple' },
-                { label: 'Total Water Used', value: waterUsed, unit: 'L', color: 'blue' },
-                { label: 'Total Energy Used', value: energyUsed, unit: 'kWh', color: 'orange' },
-                { label: 'Yield', value: yieldKg, unit: 'kg', color: 'green' },
-                { label: 'Mist Runtime', value: mistRuntimeSeconds, unit: 's', color: 'green' },
-                { label: 'Fan Runtime', value: fanRuntimeSeconds, unit: 's', color: 'blue' }
-            ];
-
-            let html = '';
-            metrics.forEach(m => {
-                html += `
-                    <div class="sustainability-card">
-                        <div class="label">${m.label}</div>
-                        <div class="value ${m.color}">${m.value.toFixed(2)}</div>
-                        <div class="unit">${m.unit}</div>
-                    </div>
-                `;
-            });
-
-            document.getElementById('sustainabilityGrid').innerHTML = html;
         }
 
         // ===== UPDATE CHART =====
@@ -880,11 +914,15 @@
                 co2Threshold: parseInt(document.getElementById('co2Threshold').value),
                 tempFanOn: parseFloat(document.getElementById('tempFanOn').value),
                 tempFanOff: parseFloat(document.getElementById('tempFanOff').value),
-                mq135_r0: parseFloat(document.getElementById('mq135_r0').value)
+                mq135_r0: parseFloat(document.getElementById('mq135_r0').value),
+                waterFlowRate: parseFloat(document.getElementById('waterFlowRate').value),
+                fanPower: parseFloat(document.getElementById('fanPower').value),
+                yieldKg: parseFloat(document.getElementById('yieldKg').value)
             };
 
             localStorage.setItem('mushroomConfig', JSON.stringify(config));
 
+            // Send to Google Sheets
             fetch(APPS_SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
@@ -896,6 +934,11 @@
             status.textContent = '✅ Configuration saved successfully!';
             status.style.color = '#2ecc71';
             setTimeout(() => { status.textContent = ''; }, 3000);
+
+            // Recalculate sustainability with new values
+            if (allData.length > 0) {
+                calculateSustainability(allData);
+            }
         }
 
         function resetConfig() {
@@ -908,7 +951,10 @@
                 co2Threshold: 800,
                 tempFanOn: 30,
                 tempFanOff: 28,
-                mq135_r0: 15
+                mq135_r0: 15,
+                waterFlowRate: 2.5,
+                fanPower: 15,
+                yieldKg: 0
             };
 
             Object.keys(defaults).forEach(key => {
@@ -921,6 +967,10 @@
             status.textContent = '↩️ Reset to default values';
             status.style.color = '#f39c12';
             setTimeout(() => { status.textContent = ''; }, 3000);
+
+            if (allData.length > 0) {
+                calculateSustainability(allData);
+            }
         }
 
         function loadConfig() {
