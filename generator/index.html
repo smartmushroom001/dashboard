@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍄 Fake Data Generator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a15;
+            min-height: 100vh;
+            padding: 20px;
+            color: #fff;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        .header { text-align: center; padding: 20px 0; }
+        .header h1 {
+            font-size: 2rem;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header p { color: #666; margin-top: 5px; font-size: 0.9rem; }
+        .card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .card h2 { font-size: 1.1rem; color: #ddd; margin-bottom: 15px; }
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .config-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .config-item label {
+            font-size: 0.75rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .config-item input, .config-item select {
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 0.9rem;
+        }
+        .config-item input:focus, .config-item select:focus {
+            outline: none;
+            border-color: #f5576c;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        .btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+            min-width: 120px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: #fff;
+        }
+        .btn-primary:hover { transform: scale(1.02); box-shadow: 0 5px 20px rgba(245, 87, 108, 0.3); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-secondary { background: rgba(255,255,255,0.05); color: #aaa; border: 1px solid rgba(255,255,255,0.1); }
+        .btn-secondary:hover { background: rgba(255,255,255,0.1); }
+        .btn-danger { background: #e74c3c; color: #fff; }
+        .btn-danger:hover { background: #c0392b; }
+        .log-container {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            margin-top: 15px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .log-container .log-entry { padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.02); color: #888; }
+        .log-container .log-entry.success { color: #2ecc71; }
+        .log-container .log-entry.error { color: #e74c3c; }
+        .log-container .log-entry.info { color: #3498db; }
+        .log-container .log-entry.warning { color: #f39c12; }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .stat-item {
+            background: rgba(255,255,255,0.03);
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .stat-item .label { font-size: 0.6rem; color: #555; text-transform: uppercase; }
+        .stat-item .value { font-size: 1.2rem; font-weight: bold; margin-top: 3px; }
+        .stat-item .value.green { color: #2ecc71; }
+        .stat-item .value.blue { color: #3498db; }
+        .stat-item .value.red { color: #e74c3c; }
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 2px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        .progress-bar .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #f093fb, #f5576c);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .status-badge.running { background: #2ecc71; color: #000; }
+        .status-badge.stopped { background: #555; color: #fff; }
+        @media (max-width: 768px) {
+            .config-grid { grid-template-columns: 1fr; }
+            .btn-group { flex-direction: column; }
+            .btn { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🍄 Fake Data Generator</h1>
+            <p>Simulate sensor data for your Mushroom Cultivation Dashboard</p>
+        </div>
+
+        <div class="card">
+            <h2>⚙️ Configuration</h2>
+            <div class="config-grid">
+                <div class="config-item">
+                    <label>Apps Script URL</label>
+                    <input type="text" id="scriptUrl" value="https://script.google.com/macros/s/AKfycbymCE9xnG42hiZa6UfqNzyy1FQcz2zPEl5EK_3LuWFRkxHSkWRNNyPowtnsUtotmRHZfg/exec">
+                </div>
+                <div class="config-item">
+                    <label>Send Interval (seconds)</label>
+                    <input type="number" id="interval" value="5" min="1" max="60">
+                </div>
+                <div class="config-item">
+                    <label>Data Variance</label>
+                    <select id="variance">
+                        <option value="low">Low (Stable)</option>
+                        <option value="medium" selected>Medium (Normal)</option>
+                        <option value="high">High (Volatile)</option>
+                    </select>
+                </div>
+                <div class="config-item">
+                    <label>Include Errors</label>
+                    <select id="includeErrors">
+                        <option value="false">No</option>
+                        <option value="true">Yes (Random)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-primary" id="startBtn" onclick="startGenerator()">▶️ Start</button>
+                <button class="btn btn-secondary" id="stopBtn" onclick="stopGenerator()" disabled>⏹️ Stop</button>
+                <button class="btn btn-secondary" onclick="sendSingleData()">📤 Send One</button>
+                <button class="btn btn-danger" onclick="clearLogs()">🗑️ Clear Logs</button>
+            </div>
+
+            <div class="status-badge stopped" id="statusBadge">Stopped</div>
+
+            <div class="stats">
+                <div class="stat-item"><div class="label">Sent</div><div class="value green" id="sentCount">0</div></div>
+                <div class="stat-item"><div class="label">Successful</div><div class="value blue" id="successCount">0</div></div>
+                <div class="stat-item"><div class="label">Failed</div><div class="value red" id="failCount">0</div></div>
+                <div class="stat-item"><div class="label">Status</div><div class="value" id="lastStatus" style="color:#f39c12;">Ready</div></div>
+            </div>
+
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        </div>
+
+        <div class="card">
+            <h2>📋 Log</h2>
+            <div class="log-container" id="logContainer">
+                <div class="log-entry info">🔄 Ready to generate fake data...</div>
+                <div class="log-entry info">📝 Apps Script URL: https://script.google.com/macros/s/AKfycbymCE9xnG42hiZa6UfqNzyy1FQcz2zPEl5EK_3LuWFRkxHSkWRNNyPowtnsUtotmRHZfg/exec</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== CONFIGURATION =====
+        let isRunning = false;
+        let intervalId = null;
+        let sentCount = 0;
+        let successCount = 0;
+        let failCount = 0;
+
+        const logContainer = document.getElementById('logContainer');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const statusBadge = document.getElementById('statusBadge');
+        const sentCountEl = document.getElementById('sentCount');
+        const successCountEl = document.getElementById('successCount');
+        const failCountEl = document.getElementById('failCount');
+        const lastStatusEl = document.getElementById('lastStatus');
+        const progressFill = document.getElementById('progressFill');
+        const scriptUrlInput = document.getElementById('scriptUrl');
+        const intervalInput = document.getElementById('interval');
+        const varianceSelect = document.getElementById('variance');
+        const includeErrorsSelect = document.getElementById('includeErrors');
+
+        // ===== LOGGING =====
+        function addLog(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            while (logContainer.children.length > 100) {
+                logContainer.removeChild(logContainer.firstChild);
+            }
+        }
+
+        function clearLogs() {
+            logContainer.innerHTML = '';
+            addLog('🗑️ Logs cleared', 'info');
+        }
+
+        // ===== FAKE DATA GENERATION =====
+        function generateFakeData() {
+            const variance = varianceSelect.value;
+            const includeErrors = includeErrorsSelect.value === 'true';
+            let mult = variance === 'low' ? 0.3 : variance === 'high' ? 2.0 : 1.0;
+
+            const data = {};
+
+            for (let i = 1; i <= 3; i++) {
+                const baseTemp = 25 + (Math.random() - 0.5) * 2 * mult;
+                const baseHum = 85 + (Math.random() - 0.5) * 8 * mult;
+                const baseCo2 = 450 + (Math.random() - 0.5) * 200 * mult;
+
+                data[`z${i}_temp`] = Math.round((baseTemp + (Math.random() - 0.5) * 1) * 10) / 10;
+                data[`z${i}_hum`] = Math.round((baseHum + (Math.random() - 0.5) * 2) * 10) / 10;
+                data[`z${i}_co2`] = Math.round(baseCo2 + (Math.random() - 0.5) * 50);
+                data[`z${i}_water`] = Math.random() < 0.1 ? 0 : 1;
+                data[`z${i}_mist`] = data[`z${i}_hum`] < 83 ? 1 : 0;
+                data[`z${i}_exhaust`] = (data[`z${i}_co2`] > 800 || data[`z${i}_temp`] > 30) ? 1 : 0;
+                data[`z${i}_error`] = (includeErrors && Math.random() < 0.03) ? 1 : 0;
+            }
+
+            return data;
+        }
+
+        // ===== SEND DATA =====
+        async function sendDataToGoogleSheets(data) {
+            const scriptUrl = scriptUrlInput.value.trim();
+
+            try {
+                await fetch(scriptUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                return true;
+            } catch (error) {
+                return false;
+            }
+        }
+
+        // ===== SEND SINGLE =====
+        async function sendSingleData() {
+            const data = generateFakeData();
+            let logMsg = '📤 Sending: ';
+            for (let i = 1; i <= 3; i++) {
+                logMsg += `Z${i}: ${data[`z${i}_temp`]}°C, ${data[`z${i}_hum`]}%, ${data[`z${i}_co2`]}ppm `;
+            }
+            addLog(logMsg, 'info');
+
+            const success = await sendDataToGoogleSheets(data);
+
+            sentCount++;
+            if (success) {
+                successCount++;
+                addLog('✅ Data sent successfully!', 'success');
+                lastStatusEl.textContent = '✅ Success';
+                lastStatusEl.style.color = '#2ecc71';
+            } else {
+                failCount++;
+                addLog('❌ Failed to send data (CORS/network)', 'error');
+                lastStatusEl.textContent = '❌ Failed';
+                lastStatusEl.style.color = '#e74c3c';
+            }
+
+            updateStats();
+        }
+
+        // ===== START GENERATOR =====
+        function startGenerator() {
+            if (isRunning) return;
+
+            const interval = parseInt(intervalInput.value) * 1000;
+            if (interval < 1000) {
+                addLog('⚠️ Interval must be at least 1 second', 'warning');
+                return;
+            }
+
+            isRunning = true;
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            statusBadge.textContent = '▶️ Running';
+            statusBadge.className = 'status-badge running';
+
+            addLog(`▶️ Generator started - sending every ${interval/1000} seconds`, 'info');
+
+            sendSingleData();
+            intervalId = setInterval(sendSingleData, interval);
+        }
+
+        // ===== STOP GENERATOR =====
+        function stopGenerator() {
+            if (!isRunning) return;
+
+            isRunning = false;
+            clearInterval(intervalId);
+            intervalId = null;
+
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            statusBadge.textContent = '⏹️ Stopped';
+            statusBadge.className = 'status-badge stopped';
+
+            addLog('⏹️ Generator stopped', 'warning');
+        }
+
+        // ===== UPDATE STATS =====
+        function updateStats() {
+            sentCountEl.textContent = sentCount;
+            successCountEl.textContent = successCount;
+            failCountEl.textContent = failCount;
+
+            const total = sentCount || 1;
+            const progress = Math.min((successCount / total) * 100, 100);
+            progressFill.style.width = progress + '%';
+        }
+
+        // ===== KEYBOARD SHORTCUTS =====
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !isRunning) startGenerator();
+            else if (e.key === 'Escape' && isRunning) stopGenerator();
+        });
+
+        // ===== INIT =====
+        addLog('💡 Press "Start" to begin sending fake data', 'info');
+        addLog('💡 Press "Send One" to send a single data point', 'info');
+        addLog('💡 Tip: Use Enter key to start, Escape to stop', 'info');
+    </script>
+</body>
+</html>
