@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍄 Smart Multi-Zone Mushroom System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a15;
+            min-height: 100vh;
+            padding: 15px;
+            color: #fff;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header {
+            text-align: center;
+            padding: 15px 0 5px 0;
+        }
+        .header h1 {
+            font-size: 2.2rem;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header .subtitle {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255,255,255,0.03);
+            border-radius: 10px;
+            padding: 12px 20px;
+            margin: 15px 0 20px 0;
+            border: 1px solid rgba(255,255,255,0.05);
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .status-dot.online { background: #2ecc71; box-shadow: 0 0 10px #2ecc7155; }
+        .status-dot.offline { background: #e74c3c; box-shadow: 0 0 10px #e74c3c55; }
+        .nav-bar {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 4px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 8px 12px;
+            margin: 15px 0 20px 0;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .nav-btn {
+            padding: 8px 20px;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            color: #666;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .nav-btn:hover { background: rgba(255,255,255,0.05); color: #aaa; }
+        .nav-btn.active { background: rgba(255,255,255,0.08); color: #fff; }
+        .nav-btn .badge {
+            font-size: 0.6rem;
+            background: rgba(255,255,255,0.05);
+            padding: 1px 8px;
+            border-radius: 10px;
+            color: #888;
+        }
+        .nav-btn .badge.danger { background: rgba(231,76,60,0.2); color: #e74c3c; }
+        .section { display: none; animation: fadeIn 0.4s ease; }
+        .section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .section-title {
+            font-size: 1.2rem;
+            margin: 0 0 15px 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid rgba(255,255,255,0.05);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-title .badge {
+            font-size: 0.6rem;
+            background: rgba(255,255,255,0.05);
+            padding: 2px 10px;
+            border-radius: 12px;
+            color: #888;
+        }
+        .rack-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+        }
+        .level-card {
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 18px;
+            border: 1px solid rgba(255,255,255,0.06);
+            transition: all 0.3s ease;
+        }
+        .level-card:hover { transform: translateY(-3px); background: rgba(255,255,255,0.06); }
+        .level-card.level-1 { border-top: 3px solid #2ecc71; }
+        .level-card.level-2 { border-top: 3px solid #3498db; }
+        .level-card.level-3 { border-top: 3px solid #9b59b6; }
+        .level-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .level-title { font-size: 1.1rem; font-weight: bold; }
+        .level-badge {
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 0.6rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .badge-bottom { background: #2ecc71; color: #000; }
+        .badge-middle { background: #3498db; color: #fff; }
+        .badge-top { background: #9b59b6; color: #fff; }
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+        .sensor-item {
+            background: rgba(255,255,255,0.02);
+            padding: 6px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .sensor-item .label {
+            font-size: 0.5rem;
+            text-transform: uppercase;
+            color: #555;
+            letter-spacing: 0.5px;
+        }
+        .sensor-item .value {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-top: 2px;
+        }
+        .sensor-item .unit {
+            font-size: 0.55rem;
+            color: #555;
+        }
+        .value.temp { color: #e74c3c; }
+        .value.hum { color: #3498db; }
+        .value.co2 { color: #f39c12; }
+        .value.water { color: #2ecc71; }
+        .value.good { color: #2ecc71; }
+        .value.warning { color: #f39c12; }
+        .value.danger { color: #e74c3c; }
+        .control-status {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 6px;
+            margin-top: 8px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        .control-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 4px 6px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 4px;
+            font-size: 0.65rem;
+        }
+        .control-item .label { color: #666; font-size: 0.5rem; text-transform: uppercase; }
+        .control-item .status { font-weight: bold; margin-top: 2px; }
+        .status.on { color: #2ecc71; }
+        .status.off { color: #555; }
+        .status.misting { color: #3498db; }
+        .status.pulse { color: #f39c12; }
+        .status.alarm { color: #e74c3c; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .sustainability-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+        }
+        .sustainability-card {
+            background: rgba(255,255,255,0.02);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .sustainability-card .label {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            color: #666;
+        }
+        .sustainability-card .value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        .sustainability-card .unit {
+            font-size: 0.7rem;
+            color: #555;
+        }
+        .sustainability-card .value.green { color: #2ecc71; }
+        .sustainability-card .value.blue { color: #3498db; }
+        .sustainability-card .value.orange { color: #f39c12; }
+        .sustainability-card .value.purple { color: #9b59b6; }
+        .chart-container {
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .chart-container h3 {
+            text-align: center;
+            margin-bottom: 15px;
+            color: #ddd;
+            font-size: 1rem;
+        }
+        .chart-controls {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .chart-btn {
+            padding: 5px 12px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #888;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 0.65rem;
+            transition: all 0.3s ease;
+        }
+        .chart-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .chart-btn.active { background: rgba(255,255,255,0.12); color: #fff; border-color: rgba(255,255,255,0.2); }
+        #sensorChart { width: 100% !important; height: 320px !important; }
+        .alarms-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .alarm-list {
+            background: rgba(255,255,255,0.02);
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .alarm-list h4 {
+            color: #888;
+            font-size: 0.75rem;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .alarm-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 10px;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            font-size: 0.75rem;
+            background: rgba(255,255,255,0.02);
+            border-left: 3px solid #555;
+        }
+        .alarm-item.active { border-left-color: #e74c3c; background: rgba(231,76,60,0.05); }
+        .alarm-item.cleared { border-left-color: #2ecc71; background: rgba(46,204,113,0.05); opacity: 0.6; }
+        .alarm-item .time { color: #555; font-size: 0.65rem; }
+        .alarm-item .zone-tag { font-size: 0.55rem; padding: 1px 8px; border-radius: 10px; background: rgba(255,255,255,0.05); }
+        .empty-state { text-align: center; color: #555; padding: 20px; font-size: 0.8rem; }
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 15px;
+        }
+        .config-group {
+            background: rgba(255,255,255,0.02);
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .config-group h4 {
+            color: #888;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+        .config-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+        }
+        .config-item label { font-size: 0.75rem; color: #aaa; }
+        .config-item input {
+            width: 70px;
+            padding: 3px 6px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 4px;
+            color: #fff;
+            font-size: 0.75rem;
+            text-align: center;
+        }
+        .config-item input:focus { outline: none; border-color: #f5576c; }
+        .config-item .unit { color: #555; font-size: 0.65rem; margin-left: 4px; }
+        .config-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            justify-content: center;
+        }
+        .config-btn {
+            padding: 8px 25px;
+            border: none;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .config-btn.save { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: #fff; }
+        .config-btn.save:hover { transform: scale(1.05); box-shadow: 0 5px 20px rgba(245, 87, 108, 0.3); }
+        .config-btn.reset { background: rgba(255,255,255,0.05); color: #888; border: 1px solid rgba(255,255,255,0.08); }
+        .config-btn.reset:hover { background: rgba(255,255,255,0.1); }
+        #configStatus { text-align: center; font-size: 0.75rem; margin-top: 10px; color: #2ecc71; }
+        .loading { text-align: center; padding: 80px 0; }
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.05);
+            border-radius: 50%;
+            border-top-color: #f5576c;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .refresh-btn {
+            display: block;
+            margin: 20px auto;
+            padding: 8px 25px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border: none;
+            border-radius: 20px;
+            color: #fff;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .refresh-btn:hover { transform: scale(1.05); box-shadow: 0 5px 20px rgba(245, 87, 108, 0.3); }
+        .auto-refresh { text-align: center; color: #444; font-size: 0.6rem; margin-top: 5px; }
+        @media (max-width: 768px) {
+            .rack-grid { grid-template-columns: 1fr; }
+            .alarms-grid { grid-template-columns: 1fr; }
+            .config-grid { grid-template-columns: 1fr; }
+            .sensor-grid { grid-template-columns: 1fr 1fr 1fr; }
+            .header h1 { font-size: 1.5rem; }
+            .sustainability-grid { grid-template-columns: 1fr 1fr; }
+            .nav-btn { padding: 6px 12px; font-size: 0.7rem; }
+        }
+        @media (max-width: 480px) {
+            .sensor-grid { grid-template-columns: 1fr 1fr; }
+            .nav-btn { padding: 4px 10px; font-size: 0.6rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🍄 Smart Multi-Zone Mushroom System</h1>
+            <p class="subtitle">Real-time Monitoring • 3 Zones • CO₂ • Temperature • Humidity</p>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p style="margin-top:15px;color:#555;">Loading system data...</p>
+        </div>
+
+        <div id="dashboard" style="display:none;">
+            <!-- Status Bar -->
+            <div class="status-bar">
+                <div class="status-item">
+                    <span class="status-dot online" id="statusDot"></span>
+                    <span id="statusText">Online</span>
+                </div>
+                <div class="status-item"><span id="lastUpdate">Last update: --</span></div>
+                <div class="status-item"><span id="rowCount">Records: 0</span></div>
+                <div class="status-item"><span id="alarmCount">🔔 Alarms: 0</span></div>
+                <div class="status-item"><span id="zoneStatus">🌫️ Mist: 0/3</span></div>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="nav-bar">
+                <button class="nav-btn active" data-section="realtime" onclick="showSection('realtime')">📊 Realtime <span class="badge">Live</span></button>
+                <button class="nav-btn" data-section="sustainability" onclick="showSection('sustainability')">🌱 Sustainability <span class="badge">Metrics</span></button>
+                <button class="nav-btn" data-section="charts" onclick="showSection('charts')">📈 Charts <span class="badge">Trends</span></button>
+                <button class="nav-btn" data-section="alarms" onclick="showSection('alarms')">🔔 Alarms <span class="badge danger" id="navAlarmBadge">0</span></button>
+                <button class="nav-btn" data-section="config" onclick="showSection('config')">⚙️ Config <span class="badge">Settings</span></button>
+            </nav>
+
+            <!-- SECTION 1: REALTIME -->
+            <div id="section-realtime" class="section active">
+                <div class="section-title">📊 Realtime Data <span class="badge">Live Updates</span></div>
+                <div id="zoneCards" class="rack-grid"></div>
+            </div>
+
+            <!-- SECTION 2: SUSTAINABILITY -->
+            <div id="section-sustainability" class="section">
+                <div class="section-title">🌱 Sustainability Tracking <span class="badge">Resource Efficiency</span></div>
+                <div class="sustainability-grid" id="sustainabilityGrid"></div>
+            </div>
+
+            <!-- SECTION 3: CHARTS -->
+            <div id="section-charts" class="section">
+                <div class="section-title">📈 Environmental Trends <span class="badge">Last 30 Readings</span></div>
+                <div class="chart-container">
+                    <h3 id="chartTitle">Temperature Trends</h3>
+                    <div class="chart-controls">
+                        <button class="chart-btn active" data-param="temp" onclick="changeChart('temp')">🌡️ Temp</button>
+                        <button class="chart-btn" data-param="hum" onclick="changeChart('hum')">💧 Humidity</button>
+                        <button class="chart-btn" data-param="co2" onclick="changeChart('co2')">🌫️ CO₂</button>
+                        <button class="chart-btn" data-param="mist" onclick="changeChart('mist')">🌫️ Mist</button>
+                        <button class="chart-btn" data-param="exhaust" onclick="changeChart('exhaust')">💨 Exhaust</button>
+                    </div>
+                    <canvas id="sensorChart"></canvas>
+                </div>
+            </div>
+
+            <!-- SECTION 4: ALARMS -->
+            <div id="section-alarms" class="section">
+                <div class="section-title">🔔 Alarms <span class="badge" id="alarmBadge">0 Active</span></div>
+                <div class="alarms-grid">
+                    <div class="alarm-list"><h4>🔴 Active Alarms</h4><div id="activeAlarms"><div class="empty-state">No active alarms</div></div></div>
+                    <div class="alarm-list"><h4>✅ Cleared Alarms</h4><div id="clearedAlarms"><div class="empty-state">No cleared alarms</div></div></div>
+                </div>
+            </div>
+
+            <!-- SECTION 5: CONFIGURATION -->
+            <div id="section-config" class="section">
+                <div class="section-title">⚙️ Configuration <span class="badge">System Parameters</span></div>
+                <div class="config-grid">
+                    <div class="config-group">
+                        <h4>🌫️ Mist Control</h4>
+                        <div class="config-item"><label>Target Humidity</label><div><input type="number" id="targetHumidity" value="85" min="60" max="95"><span class="unit">%</span></div></div>
+                        <div class="config-item"><label>Humidity Tolerance</label><div><input type="number" id="humidityTolerance" value="3" min="1" max="10"><span class="unit">%</span></div></div>
+                        <div class="config-item"><label>Mist ON Duration</label><div><input type="number" id="mistPulseOn" value="3000" min="1000" max="10000"><span class="unit">ms</span></div></div>
+                        <div class="config-item"><label>Mist OFF Duration</label><div><input type="number" id="mistPulseOff" value="5000" min="1000" max="20000"><span class="unit">ms</span></div></div>
+                        <div class="config-item"><label>Max Mist Duration</label><div><input type="number" id="mistMaxDuration" value="30000" min="5000" max="60000"><span class="unit">ms</span></div></div>
+                    </div>
+                    <div class="config-group">
+                        <h4>🌫️ Environmental</h4>
+                        <div class="config-item"><label>CO₂ Threshold</label><div><input type="number" id="co2Threshold" value="800" min="400" max="2000"><span class="unit">ppm</span></div></div>
+                        <div class="config-item"><label>Fan ON Temp</label><div><input type="number" id="tempFanOn" value="30" min="20" max="40"><span class="unit">°C</span></div></div>
+                        <div class="config-item"><label>Fan OFF Temp</label><div><input type="number" id="tempFanOff" value="28" min="18" max="38"><span class="unit">°C</span></div></div>
+                        <div class="config-item"><label>MQ135 R0</label><div><input type="number" id="mq135_r0" value="15" min="5" max="30" step="0.5"><span class="unit">kΩ</span></div></div>
+                    </div>
+                </div>
+                <div class="config-actions">
+                    <button class="config-btn save" onclick="saveConfig()">💾 Save Configuration</button>
+                    <button class="config-btn reset" onclick="resetConfig()">↩️ Reset to Default</button>
+                </div>
+                <div id="configStatus"></div>
+            </div>
+
+            <button class="refresh-btn" onclick="fetchData()">🔄 Refresh Data</button>
+            <div class="auto-refresh">Auto-refresh every 10 seconds</div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // ===== CONFIGURATION =====
+        const SHEET_ID = '1zUDsxfZpBhXHpHFT_62ykMpH1wp9W69gH6lgMdD1ris';
+        const SHEET_NAME = 'SensorData';
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbymCE9xnG42hiZa6UfqNzyy1FQcz2zPEl5EK_3LuWFRkxHSkWRNNyPowtnsUtotmRHZfg/exec';
+
+        let chart = null;
+        let updateInterval = null;
+        let allData = [];
+        let currentParam = 'temp';
+
+        // ===== DATE FORMATTER =====
+        const dateFormatter = new Intl.DateTimeFormat('en-MY', {
+            timeZone: 'Asia/Kuala_Lumpur',
+            day: '2-digit',
+            month: 'short',
+            year: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        });
+
+        // ===== CHART CONFIGS =====
+        const chartConfigs = {
+            temp: { title: '📊 Temperature Trends (°C)', yLabel: 'Temperature (°C)', keys: ['z1_temp', 'z2_temp', 'z3_temp'], colors: ['#e74c3c', '#c0392b', '#e67e22'] },
+            hum: { title: '📊 Humidity Trends (%)', yLabel: 'Humidity (%)', keys: ['z1_hum', 'z2_hum', 'z3_hum'], colors: ['#2ecc71', '#27ae60', '#1abc9c'] },
+            co2: { title: '📊 CO₂ Trends (ppm)', yLabel: 'CO₂ (ppm)', keys: ['z1_co2', 'z2_co2', 'z3_co2'], colors: ['#f39c12', '#e67e22', '#d35400'] },
+            mist: { title: '📊 Mist Active Status', yLabel: 'Mist (0/1)', keys: ['z1_mist', 'z2_mist', 'z3_mist'], colors: ['#3498db', '#2980b9', '#1abc9c'] },
+            exhaust: { title: '📊 Exhaust Active Status', yLabel: 'Exhaust (0/1)', keys: ['z1_exhaust', 'z2_exhaust', 'z3_exhaust'], colors: ['#9b59b6', '#8e44ad', '#6c3483'] }
+        };
+
+        const zoneLabels = ['Zone 1', 'Zone 2', 'Zone 3'];
+        const zoneColors = ['#2ecc71', '#3498db', '#9b59b6'];
+
+        // ===== NAVIGATION =====
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+            const target = document.getElementById(`section-${sectionId}`);
+            if (target) target.classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.section === sectionId) btn.classList.add('active');
+            });
+            if (sectionId === 'charts' && allData.length > 0) {
+                setTimeout(() => updateChart(allData, currentParam), 100);
+            }
+        }
+
+        // ===== FETCH DATA =====
+        async function fetchData() {
+            try {
+                const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${SHEET_NAME}`;
+                const response = await fetch(url);
+                const text = await response.text();
+
+                const jsonStart = text.indexOf('(') + 1;
+                const jsonEnd = text.lastIndexOf(')');
+                const jsonStr = text.substring(jsonStart, jsonEnd);
+                const data = JSON.parse(jsonStr);
+
+                if (data && data.table && data.table.rows && data.table.rows.length > 1) {
+                    const parsedData = parseGVizData(data);
+                    if (parsedData.length > 0) {
+                        allData = parsedData;
+                        updateDashboard(parsedData);
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('dashboard').style.display = 'block';
+                    }
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('statusText').textContent = '⚠️ Error loading data';
+            }
+        }
+
+        // ===== PARSE GViz =====
+        function parseGVizData(data) {
+            const rows = data.table.rows;
+            const parsedData = [];
+
+            rows.forEach((row, rowIndex) => {
+                if (rowIndex === 0) return;
+                if (!row.c || row.c.length < 22) return;
+
+                const getVal = (idx) => parseFloat(row.c[idx]?.v) || 0;
+                const getStr = (idx) => row.c[idx]?.v || '';
+
+                // Parse timestamp from GViz format
+                let timestamp = getStr(0);
+                if (typeof timestamp === 'string' && timestamp.startsWith('Date(')) {
+                    const match = timestamp.match(/Date\(([^)]+)\)/);
+                    if (match) {
+                        const parts = match[1].split(',').map(num => parseInt(num.trim()));
+                        const date = new Date(parts[0], parts[1], parts[2], parts[3] || 0, parts[4] || 0, parts[5] || 0);
+                        timestamp = date.toISOString();
+                    }
+                }
+
+                parsedData.push({
+                    timestamp: timestamp,
+                    z1_temp: getVal(1), z1_hum: getVal(2), z1_co2: getVal(3),
+                    z1_water: getVal(4), z1_mist: getVal(5), z1_exhaust: getVal(6), z1_error: getVal(7),
+                    z2_temp: getVal(8), z2_hum: getVal(9), z2_co2: getVal(10),
+                    z2_water: getVal(11), z2_mist: getVal(12), z2_exhaust: getVal(13), z2_error: getVal(14),
+                    z3_temp: getVal(15), z3_hum: getVal(16), z3_co2: getVal(17),
+                    z3_water: getVal(18), z3_mist: getVal(19), z3_exhaust: getVal(20), z3_error: getVal(21)
+                });
+            });
+
+            return parsedData;
+        }
+
+        // ===== UPDATE DASHBOARD =====
+        function updateDashboard(data) {
+            const latest = data[data.length - 1];
+
+            // Build zone cards
+            let html = '';
+            let alarmCount = 0;
+            let mistCount = 0;
+
+            for (let i = 0; i < 3; i++) {
+                const idx = i + 1;
+                const prefix = `z${idx}`;
+                const temp = latest[`${prefix}_temp`] || 0;
+                const hum = latest[`${prefix}_hum`] || 0;
+                const co2 = latest[`${prefix}_co2`] || 0;
+                const water = latest[`${prefix}_water`] || 0;
+                const mist = latest[`${prefix}_mist`] || 0;
+                const exhaust = latest[`${prefix}_exhaust`] || 0;
+                const error = latest[`${prefix}_error`] || 0;
+
+                if (water === 0) alarmCount++;
+                if (mist) mistCount++;
+
+                const tempStatus = temp > 30 ? 'danger' : temp > 28 ? 'warning' : 'good';
+                const humStatus = hum < 80 ? 'warning' : hum > 90 ? 'warning' : 'good';
+                const co2Status = co2 > 800 ? 'danger' : co2 > 600 ? 'warning' : 'good';
+                const waterStatus = water === 0 ? 'danger' : 'good';
+
+                const badges = ['badge-bottom', 'badge-middle', 'badge-top'];
+                const positions = ['Bottom', 'Middle', 'Top'];
+
+                html += `
+                    <div class="level-card level-${idx}">
+                        <div class="level-header">
+                            <span class="level-title">${zoneLabels[i]} (${positions[i]})</span>
+                            <span class="level-badge ${badges[i]}">${positions[i]}</span>
+                        </div>
+                        <div class="sensor-grid">
+                            <div class="sensor-item">
+                                <div class="label">🌡️ Temp</div>
+                                <div class="value temp ${tempStatus}">${temp.toFixed(1)}</div>
+                                <div class="unit">°C</div>
+                            </div>
+                            <div class="sensor-item">
+                                <div class="label">💧 Humidity</div>
+                                <div class="value hum ${humStatus}">${hum.toFixed(1)}</div>
+                                <div class="unit">%</div>
+                            </div>
+                            <div class="sensor-item">
+                                <div class="label">🌫️ CO₂</div>
+                                <div class="value co2 ${co2Status}">${co2.toFixed(0)}</div>
+                                <div class="unit">ppm</div>
+                            </div>
+                            <div class="sensor-item">
+                                <div class="label">💧 Water</div>
+                                <div class="value water ${waterStatus}">${water ? '✅' : '❌'}</div>
+                                <div class="unit">${water ? 'Present' : 'Empty'}</div>
+                            </div>
+                            <div class="sensor-item">
+                                <div class="label">🌫️ Mist</div>
+                                <div class="value">${mist ? '🟢 ON' : '⭕ OFF'}</div>
+                                <div class="unit">${mist ? 'Active' : 'Idle'}</div>
+                            </div>
+                            <div class="sensor-item">
+                                <div class="label">💨 Exhaust</div>
+                                <div class="value">${exhaust ? '🟢 ON' : '⭕ OFF'}</div>
+                                <div class="unit">${exhaust ? 'Active' : 'Idle'}</div>
+                            </div>
+                        </div>
+                        <div class="control-status">
+                            <div class="control-item">
+                                <span class="label">🌫️ Mist</span>
+                                <span class="status ${mist ? 'misting' : 'off'}">${mist ? '🟢 ON' : '⭕ OFF'}</span>
+                            </div>
+                            <div class="control-item">
+                                <span class="label">💨 Exhaust</span>
+                                <span class="status ${exhaust ? 'on' : 'off'}">${exhaust ? '🟢 ON' : '⭕ OFF'}</span>
+                            </div>
+                            <div class="control-item">
+                                <span class="label">💧 Water</span>
+                                <span class="status ${water === 0 ? 'alarm' : 'off'}">${water ? '✅ OK' : '🔴 EMPTY'}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            document.getElementById('zoneCards').innerHTML = html;
+            document.getElementById('alarmCount').textContent = `🔔 Alarms: ${alarmCount}`;
+            document.getElementById('alarmBadge').textContent = `${alarmCount} Active`;
+            document.getElementById('navAlarmBadge').textContent = alarmCount;
+            document.getElementById('zoneStatus').textContent = `🌫️ Mist: ${mistCount}/3`;
+            document.getElementById('rowCount').textContent = `Records: ${data.length}`;
+            document.getElementById('lastUpdate').textContent = `Last update: ${new Date().toLocaleString()}`;
+
+            updateChart(data, currentParam);
+        }
+
+        // ===== UPDATE CHART =====
+        function updateChart(data, param) {
+            const chartData = data.slice(-30);
+            const config = chartConfigs[param];
+            if (!config) return;
+
+            const labels = chartData.map(d => {
+                try {
+                    const date = new Date(d.timestamp);
+                    if (!isNaN(date.getTime())) return dateFormatter.format(date);
+                    return '--';
+                } catch { return '--'; }
+            });
+
+            const datasets = config.keys.map((key, index) => ({
+                label: zoneLabels[index],
+                data: chartData.map(d => d[key] || 0),
+                borderColor: config.colors[index],
+                backgroundColor: config.colors[index] + '33',
+                borderWidth: 2,
+                tension: 0.4,
+                fill: true
+            }));
+
+            if (chart) chart.destroy();
+
+            const ctx = document.getElementById('sensorChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { legend: { labels: { color: '#888' } } },
+                    scales: {
+                        x: {
+                            ticks: { color: '#555', font: { size: 8 }, maxTicksLimit: 15 },
+                            grid: { color: 'rgba(255,255,255,0.03)' }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: config.yLabel, color: '#555' },
+                            ticks: { color: '#555' },
+                            grid: { color: 'rgba(255,255,255,0.03)' }
+                        }
+                    }
+                }
+            });
+
+            document.getElementById('chartTitle').textContent = config.title;
+        }
+
+        function changeChart(param) {
+            currentParam = param;
+            document.querySelectorAll('.chart-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.param === param);
+            });
+            if (allData.length > 0) updateChart(allData, param);
+        }
+
+        // ===== CONFIGURATION =====
+        function saveConfig() {
+            const config = {
+                type: 'config',
+                targetHumidity: parseFloat(document.getElementById('targetHumidity').value),
+                humidityTolerance: parseFloat(document.getElementById('humidityTolerance').value),
+                mistPulseOn: parseInt(document.getElementById('mistPulseOn').value),
+                mistPulseOff: parseInt(document.getElementById('mistPulseOff').value),
+                mistMaxDuration: parseInt(document.getElementById('mistMaxDuration').value),
+                co2Threshold: parseInt(document.getElementById('co2Threshold').value),
+                tempFanOn: parseFloat(document.getElementById('tempFanOn').value),
+                tempFanOff: parseFloat(document.getElementById('tempFanOff').value),
+                mq135_r0: parseFloat(document.getElementById('mq135_r0').value)
+            };
+
+            // Save to localStorage
+            localStorage.setItem('mushroomConfig', JSON.stringify(config));
+
+            // Send to Google Sheets via Apps Script
+            fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            });
+
+            const status = document.getElementById('configStatus');
+            status.textContent = '✅ Configuration saved successfully!';
+            status.style.color = '#2ecc71';
+            setTimeout(() => { status.textContent = ''; }, 3000);
+        }
+
+        function resetConfig() {
+            const defaults = {
+                targetHumidity: 85,
+                humidityTolerance: 3,
+                mistPulseOn: 3000,
+                mistPulseOff: 5000,
+                mistMaxDuration: 30000,
+                co2Threshold: 800,
+                tempFanOn: 30,
+                tempFanOff: 28,
+                mq135_r0: 15
+            };
+
+            Object.keys(defaults).forEach(key => {
+                const el = document.getElementById(key);
+                if (el) el.value = defaults[key];
+            });
+
+            localStorage.removeItem('mushroomConfig');
+            const status = document.getElementById('configStatus');
+            status.textContent = '↩️ Reset to default values';
+            status.style.color = '#f39c12';
+            setTimeout(() => { status.textContent = ''; }, 3000);
+        }
+
+        function loadConfig() {
+            const saved = localStorage.getItem('mushroomConfig');
+            if (saved) {
+                try {
+                    const config = JSON.parse(saved);
+                    Object.keys(config).forEach(key => {
+                        const el = document.getElementById(key);
+                        if (el) el.value = config[key];
+                    });
+                } catch (e) {}
+            }
+        }
+
+        // ===== INITIALIZE =====
+        loadConfig();
+        fetchData();
+        updateInterval = setInterval(fetchData, 10000);
+
+        window.addEventListener('beforeunload', () => {
+            if (updateInterval) clearInterval(updateInterval);
+        });
+    </script>
+</body>
+</html>
