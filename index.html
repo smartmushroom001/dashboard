@@ -200,12 +200,19 @@
         .status.on { color: #2ecc71; }
         .status.off { color: #555; }
         .status.misting { color: #3498db; }
-        .status.pulse { color: #f39c12; }
         .status.alarm { color: #e74c3c; animation: blink 1s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        /* ===== SUSTAINABILITY ===== */
+        .sustainability-section {
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
         .sustainability-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 15px;
         }
         .sustainability-card {
@@ -218,6 +225,7 @@
             font-size: 0.6rem;
             text-transform: uppercase;
             color: #666;
+            letter-spacing: 0.5px;
         }
         .sustainability-card .value {
             font-size: 1.5rem;
@@ -232,6 +240,20 @@
         .sustainability-card .value.blue { color: #3498db; }
         .sustainability-card .value.orange { color: #f39c12; }
         .sustainability-card .value.purple { color: #9b59b6; }
+        .sustainability-card .value.red { color: #e74c3c; }
+        .sustainability-note {
+            text-align: center;
+            color: #555;
+            font-size: 0.7rem;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        .sustainability-note .highlight {
+            color: #f39c12;
+        }
+
+        /* ===== CHARTS ===== */
         .chart-container {
             background: rgba(255,255,255,0.03);
             border-radius: 12px;
@@ -264,6 +286,8 @@
         .chart-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
         .chart-btn.active { background: rgba(255,255,255,0.12); color: #fff; border-color: rgba(255,255,255,0.2); }
         #sensorChart { width: 100% !important; height: 320px !important; }
+
+        /* ===== ALARMS ===== */
         .alarms-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -297,6 +321,8 @@
         .alarm-item .time { color: #555; font-size: 0.65rem; }
         .alarm-item .zone-tag { font-size: 0.55rem; padding: 1px 8px; border-radius: 10px; background: rgba(255,255,255,0.05); }
         .empty-state { text-align: center; color: #555; padding: 20px; font-size: 0.8rem; }
+
+        /* ===== CONFIG ===== */
         .config-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -354,6 +380,8 @@
         .config-btn.reset { background: rgba(255,255,255,0.05); color: #888; border: 1px solid rgba(255,255,255,0.08); }
         .config-btn.reset:hover { background: rgba(255,255,255,0.1); }
         #configStatus { text-align: center; font-size: 0.75rem; margin-top: 10px; color: #2ecc71; }
+
+        /* ===== LOADING ===== */
         .loading { text-align: center; padding: 80px 0; }
         .spinner {
             display: inline-block;
@@ -380,6 +408,7 @@
         }
         .refresh-btn:hover { transform: scale(1.05); box-shadow: 0 5px 20px rgba(245, 87, 108, 0.3); }
         .auto-refresh { text-align: center; color: #444; font-size: 0.6rem; margin-top: 5px; }
+
         @media (max-width: 768px) {
             .rack-grid { grid-template-columns: 1fr; }
             .alarms-grid { grid-template-columns: 1fr; }
@@ -399,7 +428,7 @@
     <div class="container">
         <div class="header">
             <h1>🍄 Smart Multi-Zone Mushroom System</h1>
-            <p class="subtitle">Real-time Monitoring • 3 Zones • CO₂ • Temperature • Humidity</p>
+            <p class="subtitle">Real-time Monitoring • 3 Zones • CO₂ • Temperature • Humidity • Sustainability</p>
         </div>
 
         <div id="loading" class="loading">
@@ -429,19 +458,29 @@
                 <button class="nav-btn" data-section="config" onclick="showSection('config')">⚙️ Config <span class="badge">Settings</span></button>
             </nav>
 
-            <!-- SECTION 1: REALTIME -->
+            <!-- ===== SECTION 1: REALTIME ===== -->
             <div id="section-realtime" class="section active">
                 <div class="section-title">📊 Realtime Data <span class="badge">Live Updates</span></div>
                 <div id="zoneCards" class="rack-grid"></div>
             </div>
 
-            <!-- SECTION 2: SUSTAINABILITY -->
+            <!-- ===== SECTION 2: SUSTAINABILITY ===== -->
             <div id="section-sustainability" class="section">
                 <div class="section-title">🌱 Sustainability Tracking <span class="badge">Resource Efficiency</span></div>
-                <div class="sustainability-grid" id="sustainabilityGrid"></div>
+                <div class="sustainability-section">
+                    <div class="sustainability-grid" id="sustainabilityGrid">
+                        <!-- Filled by JavaScript -->
+                    </div>
+                    <div class="sustainability-note">
+                        💡 Sustainability metrics require additional sensors:
+                        <span class="highlight">Water Flow Meter</span> and
+                        <span class="highlight">Energy Monitoring (Current Sensor)</span>
+                        <br>Currently showing simulated values for dashboard demonstration.
+                    </div>
+                </div>
             </div>
 
-            <!-- SECTION 3: CHARTS -->
+            <!-- ===== SECTION 3: CHARTS ===== -->
             <div id="section-charts" class="section">
                 <div class="section-title">📈 Environmental Trends <span class="badge">Last 30 Readings</span></div>
                 <div class="chart-container">
@@ -457,7 +496,7 @@
                 </div>
             </div>
 
-            <!-- SECTION 4: ALARMS -->
+            <!-- ===== SECTION 4: ALARMS ===== -->
             <div id="section-alarms" class="section">
                 <div class="section-title">🔔 Alarms <span class="badge" id="alarmBadge">0 Active</span></div>
                 <div class="alarms-grid">
@@ -466,7 +505,7 @@
                 </div>
             </div>
 
-            <!-- SECTION 5: CONFIGURATION -->
+            <!-- ===== SECTION 5: CONFIGURATION ===== -->
             <div id="section-config" class="section">
                 <div class="section-title">⚙️ Configuration <span class="badge">System Parameters</span></div>
                 <div class="config-grid">
@@ -587,7 +626,6 @@
                 const getVal = (idx) => parseFloat(row.c[idx]?.v) || 0;
                 const getStr = (idx) => row.c[idx]?.v || '';
 
-                // Parse timestamp from GViz format
                 let timestamp = getStr(0);
                 if (typeof timestamp === 'string' && timestamp.startsWith('Date(')) {
                     const match = timestamp.match(/Date\(([^)]+)\)/);
@@ -707,7 +745,66 @@
             document.getElementById('rowCount').textContent = `Records: ${data.length}`;
             document.getElementById('lastUpdate').textContent = `Last update: ${new Date().toLocaleString()}`;
 
+            updateSustainability(latest);
             updateChart(data, currentParam);
+        }
+
+        // ===== UPDATE SUSTAINABILITY =====
+        function updateSustainability(latest) {
+            // Calculate sustainability metrics from available data
+            // Note: These require water flow meter and energy monitoring hardware
+            // Currently using simulated values based on mist/fan activity
+
+            // Calculate total mist runtime from the data (approximate)
+            const mistCount = (latest.z1_mist || 0) + (latest.z2_mist || 0) + (latest.z3_mist || 0);
+            const exhaustCount = (latest.z1_exhaust || 0) + (latest.z2_exhaust || 0) + (latest.z3_exhaust || 0);
+
+            // Simulated values (replace with real sensor data when available)
+            // Water flow rate: 2.5 mL/s, Fan power: 15W
+            const waterFlowRate = 2.5; // mL/s
+            const fanPower = 15.0; // Watts
+            const mistRuntimeSeconds = mistCount * 10; // Approximate runtime in seconds
+            const fanRuntimeSeconds = exhaustCount * 10; // Approximate runtime in seconds
+
+            // Calculate water usage (L)
+            const waterUsed = (mistRuntimeSeconds * waterFlowRate) / 1000.0; // Convert to Liters
+
+            // Calculate energy usage (kWh)
+            const energyUsed = (fanRuntimeSeconds / 3600.0) * fanPower / 1000.0; // kWh
+
+            // Yield (user input or estimated)
+            const yieldKg = 0; // Set by user or from sensor
+
+            // Efficiency calculations
+            const waterEfficiency = yieldKg > 0 ? yieldKg / (waterUsed + 0.001) : 0;
+            const energyEfficiency = yieldKg > 0 ? yieldKg / (energyUsed + 0.001) : 0;
+            const specificWater = yieldKg > 0 ? waterUsed / (yieldKg + 0.001) : 0;
+            const specificEnergy = yieldKg > 0 ? energyUsed / (yieldKg + 0.001) : 0;
+
+            const metrics = [
+                { label: 'Water Use Efficiency', value: waterEfficiency, unit: 'kg/L', color: 'green' },
+                { label: 'Energy Use Efficiency', value: energyEfficiency, unit: 'kg/kWh', color: 'blue' },
+                { label: 'Specific Water', value: specificWater, unit: 'L/kg', color: 'orange' },
+                { label: 'Specific Energy', value: specificEnergy, unit: 'kWh/kg', color: 'purple' },
+                { label: 'Total Water Used', value: waterUsed, unit: 'L', color: 'blue' },
+                { label: 'Total Energy Used', value: energyUsed, unit: 'kWh', color: 'orange' },
+                { label: 'Yield', value: yieldKg, unit: 'kg', color: 'green' },
+                { label: 'Mist Runtime', value: mistRuntimeSeconds, unit: 's', color: 'green' },
+                { label: 'Fan Runtime', value: fanRuntimeSeconds, unit: 's', color: 'blue' }
+            ];
+
+            let html = '';
+            metrics.forEach(m => {
+                html += `
+                    <div class="sustainability-card">
+                        <div class="label">${m.label}</div>
+                        <div class="value ${m.color}">${m.value.toFixed(2)}</div>
+                        <div class="unit">${m.unit}</div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('sustainabilityGrid').innerHTML = html;
         }
 
         // ===== UPDATE CHART =====
@@ -786,10 +883,8 @@
                 mq135_r0: parseFloat(document.getElementById('mq135_r0').value)
             };
 
-            // Save to localStorage
             localStorage.setItem('mushroomConfig', JSON.stringify(config));
 
-            // Send to Google Sheets via Apps Script
             fetch(APPS_SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
