@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🍄 Smart Multi-Zone Mushroom System</title>
     <style>
+        /* Sama seperti sebelumnya, tidak perlu ubah */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -141,9 +142,9 @@
             font-weight: bold;
             text-transform: uppercase;
         }
-        .badge-bottom { background: #2ecc71; color: #000; }
-        .badge-middle { background: #3498db; color: #fff; }
-        .badge-top { background: #9b59b6; color: #fff; }
+        .badge-top { background: #2ecc71; color: #000; }      /* Top */
+        .badge-middle { background: #3498db; color: #fff; }   /* Middle */
+        .badge-bottom { background: #9b59b6; color: #fff; }   /* Bottom */
         .sensor-grid {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
@@ -234,9 +235,6 @@
         .manual-control .btn-group .btn-on:hover { background: #27ae60; }
         .manual-control .btn-group .btn-off { background: #e74c3c; color: #fff; }
         .manual-control .btn-group .btn-off:hover { background: #c0392b; }
-        .manual-control .btn-group .btn-mqtt { background: #3498db; color: #fff; font-size: 0.5rem; padding: 2px 6px; border-radius: 3px; }
-        .manual-control .btn-group .btn-mqtt.connected { background: #2ecc71; }
-        .manual-control .btn-group .btn-mqtt.disconnected { background: #e74c3c; }
 
         /* ===== SUSTAINABILITY ===== */
         .sustainability-section {
@@ -593,6 +591,9 @@
         let currentParam = 'temp';
         let mqttClient = null;
         let mqttConnected = false;
+        let lastAlarmState = { z1: false, z2: false, z3: false };
+        let lastMistState = { z1: false, z2: false, z3: false };
+        let lastExhaustState = { z1: false, z2: false, z3: false };
 
         // Sustainability accumulators
         let cumulativeWaterUsed = 0;
@@ -620,8 +621,9 @@
             exhaust: { title: '📊 Exhaust Active Status', yLabel: 'Exhaust (0/1)', keys: ['z1_exhaust', 'z2_exhaust', 'z3_exhaust'], colors: ['#9b59b6', '#8e44ad', '#6c3483'] }
         };
 
-        const zoneLabels = ['Zone 1', 'Zone 2', 'Zone 3'];
-        const zoneColors = ['#2ecc71', '#3498db', '#9b59b6'];
+        // Physical positions: 0=Top, 1=Middle, 2=Bottom
+        const zonePositions = ['Top', 'Middle', 'Bottom'];
+        const zoneBadges = ['badge-top', 'badge-middle', 'badge-bottom'];
 
         // ===== MQTT CONNECTION =====
         function connectMQTT() {
@@ -660,6 +662,73 @@
             console.log(`Sent ${state} to ${topic}`);
         }
 
+        // ===== BROWSER NOTIFICATION =====
+        function sendNotification(title, body, icon = '🍄') {
+            if (!('Notification' in window)) {
+                console.log('Notifications not supported');
+                return;
+            }
+            if (Notification.permission === 'granted') {
+                new Notification(`🍄 ${title}`, { body, icon });
+            } else if (Notification.permission !== 'denied') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        new Notification(`🍄 ${title}`, { body, icon });
+                    }
+                });
+            }
+        }
+
+        // ===== FETCH ALARMS =====
+        async function fetchAlarms() {
+            try {
+                const response = await fetch(`${APPS_SCRIPT_URL}?action=alarms&limit=50`);
+                const alarms = await response.json();
+                if (Array.isArray(alarms)) {
+                    const active = alarms.filter(a => a.status === 'ACTIVE');
+                    const cleared = alarms.filter(a => a.status === 'CLEARED');
+
+                    // Update alarm lists
+                    if (active.length === 0) {
+                        document.getElementById('activeAlarms').innerHTML = '<div class="empty-state">No active alarms</div>';
+                    } else {
+                        let html = '';
+                        active.forEach(a => {
+                            const time = new Date(a.timestamp);
+                            html += `
+                                <div class="alarm-item active">
+                                    <span>${a.message}</span>
+                                    <span class="time">${time.toLocaleTimeString()}</span>
+                                    <span class="zone-tag">Zone ${a.zone}</span>
+                                </div>
+                            `;
+                        });
+                        document.getElementById('activeAlarms').innerHTML = html;
+                    }
+
+                    if (cleared.length === 0) {
+                        document.getElementById('clearedAlarms').innerHTML = '<div class="empty-state">No cleared alarms</div>';
+                    } else {
+                        let html = '';
+                        cleared.slice(-10).reverse().forEach(a => {
+                            const time = new Date(a.timestamp);
+                            const clearedAt = a.clearedat ? new Date(a.clearedat) : null;
+                            html += `
+                                <div class="alarm-item cleared">
+                                    <span>✅ ${a.message}</span>
+                                    <span class="time">${time.toLocaleTimeString()} ${clearedAt ? '→ ' + clearedAt.toLocaleTimeString() : ''}</span>
+                                    <span class="zone-tag">Zone ${a.zone}</span>
+                                </div>
+                            `;
+                        });
+                        document.getElementById('clearedAlarms').innerHTML = html;
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching alarms:', error);
+            }
+        }
+
         // ===== NAVIGATION =====
         function showSection(sectionId) {
             document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
@@ -671,6 +740,9 @@
             });
             if (sectionId === 'charts' && allData.length > 0) {
                 setTimeout(() => updateChart(allData, currentParam), 100);
+            }
+            if (sectionId === 'alarms') {
+                fetchAlarms();
             }
         }
 
@@ -822,28 +894,54 @@
                 const exhaust = latest[`${prefix}_exhaust`] || 0;
                 const error = latest[`${prefix}_error`] || 0;
 
-                // Water status: 1 = water present (OK), 0 = empty (Alarm)
+                // Alarm detection for notification
+                if (water === 0 && !lastAlarmState[prefix]) {
+                    sendNotification(`🔴 Alarm Zone ${idx}`, 'Water level empty!');
+                    lastAlarmState[prefix] = true;
+                } else if (water === 1 && lastAlarmState[prefix]) {
+                    sendNotification(`✅ Alarm Cleared Zone ${idx}`, 'Water level restored');
+                    lastAlarmState[prefix] = false;
+                }
+
+                // Mist state change notification
+                if (mist && !lastMistState[prefix]) {
+                    sendNotification(`🌫️ Mist ON Zone ${idx}`, 'Misting started');
+                    lastMistState[prefix] = true;
+                } else if (!mist && lastMistState[prefix]) {
+                    sendNotification(`⭕ Mist OFF Zone ${idx}`, 'Misting stopped');
+                    lastMistState[prefix] = false;
+                }
+
+                // Exhaust state change notification
+                if (exhaust && !lastExhaustState[prefix]) {
+                    sendNotification(`💨 Exhaust ON Zone ${idx}`, 'Exhaust fan started');
+                    lastExhaustState[prefix] = true;
+                } else if (!exhaust && lastExhaustState[prefix]) {
+                    sendNotification(`⭕ Exhaust OFF Zone ${idx}`, 'Exhaust fan stopped');
+                    lastExhaustState[prefix] = false;
+                }
+
                 if (water === 0) alarmCount++;
                 if (mist) mistCount++;
 
                 const tempStatus = temp > 30 ? 'danger' : temp > 28 ? 'warning' : 'good';
                 const humStatus = hum < 80 ? 'warning' : hum > 90 ? 'warning' : 'good';
                 const co2Status = co2 > 800 ? 'danger' : co2 > 600 ? 'warning' : 'good';
-                // Water status: 1 = good (water present), 0 = danger (empty)
                 const waterStatus = water === 1 ? 'good' : 'danger';
                 const waterText = water === 1 ? 'Present' : 'Empty';
                 const waterIcon = water === 1 ? '✅' : '❌';
 
                 const displayCo2 = co2 > 5000 ? '>5000' : co2.toFixed(0);
 
-                const badges = ['badge-bottom', 'badge-middle', 'badge-top'];
-                const positions = ['Bottom', 'Middle', 'Top'];
+                // Positions: 0=Top, 1=Middle, 2=Bottom
+                const position = zonePositions[i];
+                const badge = zoneBadges[i];
 
                 html += `
                     <div class="level-card level-${idx}">
                         <div class="level-header">
-                            <span class="level-title">${zoneLabels[i]} (${positions[i]})</span>
-                            <span class="level-badge ${badges[i]}">${positions[i]}</span>
+                            <span class="level-title">Zone ${idx} (${position})</span>
+                            <span class="level-badge ${badge}">${position}</span>
                         </div>
                         <div class="sensor-grid">
                             <div class="sensor-item">
@@ -933,7 +1031,6 @@
                 label: zoneLabels[index],
                 data: chartData.map(d => {
                     const val = d[key] || 0;
-                    // Clamp CO2 for chart too
                     if (key.includes('co2')) return Math.min(Math.max(val, 300), 5000);
                     return val;
                 }),
@@ -1097,7 +1194,11 @@
         connectMQTT();
         loadConfig();
         fetchData();
-        updateInterval = setInterval(fetchData, 10000);
+        fetchAlarms(); // initial load
+        updateInterval = setInterval(() => {
+            fetchData();
+            fetchAlarms();
+        }, 10000);
 
         window.addEventListener('beforeunload', () => {
             if (updateInterval) clearInterval(updateInterval);
