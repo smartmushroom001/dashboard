@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🍄 Smart Multi-Zone Mushroom System</title>
     <style>
-        /* ===== SAME STYLE AS BEFORE (keep your existing CSS) ===== */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -204,6 +203,7 @@
         .status.alarm { color: #e74c3c; animation: blink 1s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
+        /* ===== MANUAL CONTROL ===== */
         .manual-control {
             margin-top: 12px;
             padding-top: 12px;
@@ -235,6 +235,7 @@
         .manual-control .btn-group .btn-off { background: #e74c3c; color: #fff; }
         .manual-control .btn-group .btn-off:hover { background: #c0392b; }
 
+        /* ===== SUSTAINABILITY ===== */
         .sustainability-section {
             background: rgba(255,255,255,0.03);
             border-radius: 12px;
@@ -243,7 +244,7 @@
         }
         .sustainability-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 15px;
         }
         .sustainability-card {
@@ -281,6 +282,7 @@
         }
         .sustainability-note .highlight { color: #f39c12; }
 
+        /* ===== CHARTS ===== */
         .chart-container {
             background: rgba(255,255,255,0.03);
             border-radius: 12px;
@@ -314,6 +316,7 @@
         .chart-btn.active { background: rgba(255,255,255,0.12); color: #fff; border-color: rgba(255,255,255,0.2); }
         #sensorChart { width: 100% !important; height: 320px !important; }
 
+        /* ===== ALARMS ===== */
         .alarms-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -348,6 +351,7 @@
         .alarm-item .zone-tag { font-size: 0.55rem; padding: 1px 8px; border-radius: 10px; background: rgba(255,255,255,0.05); }
         .empty-state { text-align: center; color: #555; padding: 20px; font-size: 0.8rem; }
 
+        /* ===== CONFIG ===== */
         .config-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -405,8 +409,6 @@
         .config-btn.save:hover { transform: scale(1.05); box-shadow: 0 5px 20px rgba(245, 87, 108, 0.3); }
         .config-btn.reset { background: rgba(255,255,255,0.05); color: #888; border: 1px solid rgba(255,255,255,0.08); }
         .config-btn.reset:hover { background: rgba(255,255,255,0.1); }
-        .config-btn.load { background: rgba(52,152,219,0.2); color: #3498db; border: 1px solid rgba(52,152,219,0.2); }
-        .config-btn.load:hover { background: rgba(52,152,219,0.3); }
         #configStatus { text-align: center; font-size: 0.75rem; margin-top: 10px; color: #2ecc71; }
 
         .loading { text-align: center; padding: 80px 0; }
@@ -420,20 +422,7 @@
             animation: spin 1s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .refresh-btn {
-            display: block;
-            margin: 20px auto;
-            padding: 8px 25px;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            border: none;
-            border-radius: 20px;
-            color: #fff;
-            font-size: 13px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        .refresh-btn:hover { transform: scale(1.05); box-shadow: 0 5px 20px rgba(245, 87, 108, 0.3); }
+        .refresh-btn { display: none; }
         .auto-refresh { text-align: center; color: #444; font-size: 0.6rem; margin-top: 5px; }
 
         @media (max-width: 768px) {
@@ -456,27 +445,29 @@
     <div class="container">
         <div class="header">
             <h1>🍄 Smart Multi-Zone Mushroom System</h1>
-            <p class="subtitle">3 Zones • CO₂ • Temperature • Humidity • Sustainability • MQTT Control</p>
+            <p class="subtitle">MQTT Real-time • 3 Zones • CO₂ • Temperature • Humidity</p>
         </div>
 
         <div id="loading" class="loading">
             <div class="spinner"></div>
-            <p style="margin-top:15px;color:#555;">Loading system data...</p>
+            <p style="margin-top:15px;color:#555;">Connecting to MQTT...</p>
         </div>
 
         <div id="dashboard" style="display:none;">
+            <!-- Status Bar -->
             <div class="status-bar">
                 <div class="status-item">
                     <span class="status-dot online" id="statusDot"></span>
                     <span id="statusText">Online</span>
                 </div>
                 <div class="status-item"><span id="lastUpdate">Last update: --</span></div>
-                <div class="status-item"><span id="rowCount">Records: 0</span></div>
+                <div class="status-item"><span id="rowCount">MQTT Connected</span></div>
                 <div class="status-item"><span id="alarmCount">🔔 Alarms: 0</span></div>
                 <div class="status-item"><span id="zoneStatus">🌫️ Mist: 0/3</span></div>
-                <div class="status-item"><span id="mqttStatus">📡 MQTT: Disconnected</span></div>
+                <div class="status-item"><span id="mqttStatus">📡 MQTT: Connected</span></div>
             </div>
 
+            <!-- Navigation -->
             <nav class="nav-bar">
                 <button class="nav-btn active" data-section="realtime" onclick="showSection('realtime')">📊 Realtime <span class="badge">Live</span></button>
                 <button class="nav-btn" data-section="sustainability" onclick="showSection('sustainability')">🌱 Sustainability <span class="badge">Metrics</span></button>
@@ -487,7 +478,7 @@
 
             <!-- ===== SECTION 1: REALTIME ===== -->
             <div id="section-realtime" class="section active">
-                <div class="section-title">📊 Realtime Data <span class="badge">Live Updates</span></div>
+                <div class="section-title">📊 Realtime Data <span class="badge">MQTT Live</span></div>
                 <div id="zoneCards" class="rack-grid"></div>
             </div>
 
@@ -531,7 +522,7 @@
 
             <!-- ===== SECTION 5: CONFIGURATION ===== -->
             <div id="section-config" class="section">
-                <div class="section-title">⚙️ Configuration <span class="badge">System Parameters</span></div>
+                <div class="section-title">⚙️ Configuration <span class="badge">MQTT Sync</span></div>
                 <div class="config-grid">
                     <div class="config-group">
                         <h4>🌫️ Mist Control</h4>
@@ -556,15 +547,13 @@
                     </div>
                 </div>
                 <div class="config-actions">
-                    <button class="config-btn save" onclick="saveConfig()">💾 Save Configuration</button>
+                    <button class="config-btn save" onclick="publishConfig()">📤 Publish to ESP32</button>
                     <button class="config-btn reset" onclick="resetConfig()">↩️ Reset to Default</button>
-                    <button class="config-btn load" onclick="loadConfigFromSheet()">📥 Load from Sheet</button>
                 </div>
                 <div id="configStatus"></div>
             </div>
 
-            <button class="refresh-btn" onclick="fetchData()">🔄 Refresh Data</button>
-            <div class="auto-refresh">Auto-refresh every 10 seconds</div>
+            <div class="auto-refresh">MQTT Real-time • Data updates every 3 seconds</div>
         </div>
     </div>
 
@@ -572,61 +561,44 @@
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <script>
         // =====================================================
-        // KONFIGURASI
+        // MQTT CONFIGURATION
         // =====================================================
-        const SHEET_ID = '1zUDsxfZpBhXHpHFT_62ykMpH1wp9W69gH6lgMdD1ris';
-        const SENSOR_SHEET_NAME = 'SensorData';
-        const ALARM_SHEET_NAME = 'AlarmLog';
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbymCE9xnG42hiZa6UfqNzyy1FQcz2zPEl5EK_3LuWFRkxHSkWRNNyPowtnsUtotmRHZfg/exec';
         const MQTT_BROKER = 'wss://broker.emqx.io:8084/mqtt';
+        const MQTT_TOPIC_SENSORS_1 = 'mushroom/zone1/sensors';
+        const MQTT_TOPIC_SENSORS_2 = 'mushroom/zone2/sensors';
+        const MQTT_TOPIC_SENSORS_3 = 'mushroom/zone3/sensors';
+        const MQTT_TOPIC_CONFIG_SET = 'mushroom/config/set';
+        const MQTT_TOPIC_STATUS = 'mushroom/status';
 
         // =====================================================
         // GLOBAL VARIABLES
         // =====================================================
-        let chart = null;
-        let updateInterval = null;
-        let allData = [];
-        let currentParam = 'temp';
         let mqttClient = null;
         let mqttConnected = false;
-        let lastAlarmState = { z1: false, z2: false, z3: false };
-        let lastMistState = { z1: false, z2: false, z3: false };
-        let lastExhaustState = { z1: false, z2: false, z3: false };
-        let cumulativeWaterUsed = 0;
-        let cumulativeEnergyUsed = 0;
-        let lastDataLength = 0;
-
-        // =====================================================
-        // DATE FORMATTER
-        // =====================================================
-        const dateFormatter = new Intl.DateTimeFormat('en-MY', {
-            timeZone: 'Asia/Kuala_Lumpur',
-            day: '2-digit',
-            month: 'short',
-            year: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: true
-        });
-
-        // =====================================================
-        // CHART CONFIGS & LABELS
-        // =====================================================
-        const chartConfigs = {
-            temp: { title: '📊 Temperature Trends (°C)', yLabel: 'Temperature (°C)', keys: ['z1_temp', 'z2_temp', 'z3_temp'], colors: ['#e74c3c', '#c0392b', '#e67e22'] },
-            hum: { title: '📊 Humidity Trends (%)', yLabel: 'Humidity (%)', keys: ['z1_hum', 'z2_hum', 'z3_hum'], colors: ['#2ecc71', '#27ae60', '#1abc9c'] },
-            co2: { title: '📊 CO₂ Trends (ppm)', yLabel: 'CO₂ (ppm)', keys: ['z1_co2', 'z2_co2', 'z3_co2'], colors: ['#f39c12', '#e67e22', '#d35400'] },
-            mist: { title: '📊 Mist Active Status', yLabel: 'Mist (0/1)', keys: ['z1_mist', 'z2_mist', 'z3_mist'], colors: ['#3498db', '#2980b9', '#1abc9c'] },
-            exhaust: { title: '📊 Exhaust Active Status', yLabel: 'Exhaust (0/1)', keys: ['z1_exhaust', 'z2_exhaust', 'z3_exhaust'], colors: ['#9b59b6', '#8e44ad', '#6c3483'] }
+        let chart = null;
+        let currentParam = 'temp';
+        let zoneData = {
+            z1: { temp: 0, hum: 0, co2: 0, water: 0, mist: 0, exhaust: 0, error: 0 },
+            z2: { temp: 0, hum: 0, co2: 0, water: 0, mist: 0, exhaust: 0, error: 0 },
+            z3: { temp: 0, hum: 0, co2: 0, water: 0, mist: 0, exhaust: 0, error: 0 }
         };
+        let historyData = [];
+        let lastAlarmState = { z1: false, z2: false, z3: false };
 
         const zoneLabels = ['Zone 1', 'Zone 2', 'Zone 3'];
         const zonePositions = ['Top', 'Middle', 'Bottom'];
         const zoneBadges = ['badge-top', 'badge-middle', 'badge-bottom'];
 
+        const chartConfigs = {
+            temp: { title: '📊 Temperature Trends (°C)', yLabel: 'Temperature (°C)', keys: ['temp'], colors: ['#e74c3c', '#c0392b', '#e67e22'] },
+            hum: { title: '📊 Humidity Trends (%)', yLabel: 'Humidity (%)', keys: ['hum'], colors: ['#2ecc71', '#27ae60', '#1abc9c'] },
+            co2: { title: '📊 CO₂ Trends (ppm)', yLabel: 'CO₂ (ppm)', keys: ['co2'], colors: ['#f39c12', '#e67e22', '#d35400'] },
+            mist: { title: '📊 Mist Active Status', yLabel: 'Mist (0/1)', keys: ['mist'], colors: ['#3498db', '#2980b9', '#1abc9c'] },
+            exhaust: { title: '📊 Exhaust Active Status', yLabel: 'Exhaust (0/1)', keys: ['exhaust'], colors: ['#9b59b6', '#8e44ad', '#6c3483'] }
+        };
+
         // =====================================================
-        // MQTT
+        // MQTT CONNECTION
         // =====================================================
         function connectMQTT() {
             try {
@@ -636,6 +608,14 @@
                     mqttConnected = true;
                     document.getElementById('mqttStatus').textContent = '📡 MQTT: Connected';
                     document.getElementById('mqttStatus').style.color = '#2ecc71';
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('dashboard').style.display = 'block';
+
+                    // Subscribe to sensor topics
+                    mqttClient.subscribe(MQTT_TOPIC_SENSORS_1);
+                    mqttClient.subscribe(MQTT_TOPIC_SENSORS_2);
+                    mqttClient.subscribe(MQTT_TOPIC_SENSORS_3);
+                    mqttClient.subscribe(MQTT_TOPIC_STATUS);
                 });
                 mqttClient.on('error', (err) => {
                     console.error('MQTT error:', err);
@@ -649,358 +629,101 @@
                     document.getElementById('mqttStatus').textContent = '📡 MQTT: Disconnected';
                     document.getElementById('mqttStatus').style.color = '#888';
                 });
+                mqttClient.on('message', (topic, message) => {
+                    handleMQTTMessage(topic, message.toString());
+                });
             } catch (e) {
                 console.error('MQTT init error:', e);
             }
         }
 
-        function sendMQTT(zone, device, state) {
-            if (!mqttConnected || !mqttClient) {
-                alert('MQTT not connected. Please wait or refresh.');
-                return;
-            }
-            const topic = `mushroom/zone${zone}/${device}/set`;
-            mqttClient.publish(topic, state);
-            console.log(`Sent ${state} to ${topic}`);
-        }
-
         // =====================================================
-        // NOTIFICATION
+        // HANDLE MQTT MESSAGES
         // =====================================================
-        function sendNotification(title, body, icon = '🍄') {
-            if (!('Notification' in window)) return;
-            if (Notification.permission === 'granted') {
-                new Notification(`🍄 ${title}`, { body, icon });
-            } else if (Notification.permission !== 'denied') {
-                Notification.requestPermission().then(permission => {
-                    if (permission === 'granted') {
-                        new Notification(`🍄 ${title}`, { body, icon });
-                    }
-                });
-            }
-        }
-
-        // =====================================================
-        // FETCH ALARMS USING GVIZ (No CORS!)
-        // =====================================================
-        async function fetchAlarms() {
+        function handleMQTTMessage(topic, payload) {
             try {
-                const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${ALARM_SHEET_NAME}`;
-                const response = await fetch(url);
-                const text = await response.text();
+                const data = JSON.parse(payload);
 
-                const jsonStart = text.indexOf('(') + 1;
-                const jsonEnd = text.lastIndexOf(')');
-                const jsonStr = text.substring(jsonStart, jsonEnd);
-                const data = JSON.parse(jsonStr);
-
-                if (data && data.table && data.table.rows && data.table.rows.length > 1) {
-                    const rows = data.table.rows;
-                    const cols = data.table.cols;
-
-                    // Find column indices
-                    let idx = { timestamp: 0, zone: 1, type: 2, message: 3, value: 4, status: 5, clearedAt: 6 };
-                    cols.forEach((col, index) => {
-                        const label = col.label.toLowerCase().trim();
-                        if (label.includes('timestamp')) idx.timestamp = index;
-                        else if (label.includes('zone')) idx.zone = index;
-                        else if (label.includes('type')) idx.type = index;
-                        else if (label.includes('message')) idx.message = index;
-                        else if (label.includes('value')) idx.value = index;
-                        else if (label.includes('status')) idx.status = index;
-                        else if (label.includes('clearedat')) idx.clearedAt = index;
-                    });
-
-                    const alarms = [];
-                    rows.forEach((row, rowIndex) => {
-                        if (rowIndex === 0) return;
-                        if (!row.c) return;
-
-                        const getVal = (i) => row.c[i]?.v || '';
-                        const status = String(getVal(idx.status) || 'ACTIVE').toUpperCase();
-
-                        // Parse timestamp
-                        let timestamp = getVal(idx.timestamp);
-                        if (typeof timestamp === 'string' && timestamp.startsWith('Date(')) {
-                            const match = timestamp.match(/Date\(([^)]+)\)/);
-                            if (match) {
-                                const parts = match[1].split(',').map(num => parseInt(num.trim()));
-                                const date = new Date(parts[0], parts[1], parts[2], parts[3] || 0, parts[4] || 0, parts[5] || 0);
-                                timestamp = date.toISOString();
-                            }
-                        }
-
-                        let clearedAt = getVal(idx.clearedAt);
-                        if (typeof clearedAt === 'string' && clearedAt.startsWith('Date(')) {
-                            const match = clearedAt.match(/Date\(([^)]+)\)/);
-                            if (match) {
-                                const parts = match[1].split(',').map(num => parseInt(num.trim()));
-                                const date = new Date(parts[0], parts[1], parts[2], parts[3] || 0, parts[4] || 0, parts[5] || 0);
-                                clearedAt = date.toISOString();
-                            }
-                        }
-
-                        alarms.push({
-                            timestamp: timestamp,
-                            zone: parseInt(getVal(idx.zone)) || 0,
-                            type: String(getVal(idx.type) || 'UNKNOWN'),
-                            message: String(getVal(idx.message) || 'No message'),
-                            value: parseFloat(getVal(idx.value)) || 0,
-                            status: status,
-                            clearedAt: clearedAt
-                        });
-                    });
-
-                    // Display alarms
-                    const active = alarms.filter(a => a.status === 'ACTIVE');
-                    const cleared = alarms.filter(a => a.status === 'CLEARED');
-
-                    if (active.length === 0) {
-                        document.getElementById('activeAlarms').innerHTML = '<div class="empty-state">No active alarms</div>';
-                    } else {
-                        let html = '';
-                        active.forEach(a => {
-                            const time = new Date(a.timestamp);
-                            html += `
-                                <div class="alarm-item active">
-                                    <span>${a.message}</span>
-                                    <span class="time">${time.toLocaleTimeString()}</span>
-                                    <span class="zone-tag">Zone ${a.zone}</span>
-                                </div>
-                            `;
-                        });
-                        document.getElementById('activeAlarms').innerHTML = html;
-                    }
-
-                    if (cleared.length === 0) {
-                        document.getElementById('clearedAlarms').innerHTML = '<div class="empty-state">No cleared alarms</div>';
-                    } else {
-                        let html = '';
-                        cleared.slice(-10).reverse().forEach(a => {
-                            const time = new Date(a.timestamp);
-                            const clearedAt = a.clearedAt ? new Date(a.clearedAt) : null;
-                            html += `
-                                <div class="alarm-item cleared">
-                                    <span>✅ ${a.message}</span>
-                                    <span class="time">${time.toLocaleTimeString()} ${clearedAt ? '→ ' + clearedAt.toLocaleTimeString() : ''}</span>
-                                    <span class="zone-tag">Zone ${a.zone}</span>
-                                </div>
-                            `;
-                        });
-                        document.getElementById('clearedAlarms').innerHTML = html;
-                    }
+                if (topic === MQTT_TOPIC_SENSORS_1) {
+                    updateZoneData('z1', data);
+                } else if (topic === MQTT_TOPIC_SENSORS_2) {
+                    updateZoneData('z2', data);
+                } else if (topic === MQTT_TOPIC_SENSORS_3) {
+                    updateZoneData('z3', data);
+                } else if (topic === MQTT_TOPIC_STATUS) {
+                    document.getElementById('statusText').textContent = payload === 'online' ? '🟢 Online' : '🔴 Offline';
                 }
-            } catch (error) {
-                console.warn('Alarm fetch failed:', error);
+            } catch (e) {
+                console.warn('Invalid MQTT payload:', payload);
             }
         }
 
         // =====================================================
-        // NAVIGATION
+        // UPDATE ZONE DATA
         // =====================================================
-        function showSection(sectionId) {
-            document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
-            const target = document.getElementById(`section-${sectionId}`);
-            if (target) target.classList.add('active');
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.dataset.section === sectionId) btn.classList.add('active');
-            });
-            if (sectionId === 'charts' && allData.length > 0) {
-                setTimeout(() => updateChart(allData, currentParam), 100);
-            }
-            if (sectionId === 'alarms') {
-                fetchAlarms();
-            }
-        }
+        function updateZoneData(zoneKey, data) {
+            const zone = zoneData[zoneKey];
+            zone.temp = data.temp || 0;
+            zone.hum = data.hum || 0;
+            zone.co2 = data.co2 || 0;
+            zone.water = data.water || 0;
+            zone.mist = data.mist || 0;
+            zone.exhaust = data.exhaust || 0;
+            zone.error = data.error || 0;
 
-        // =====================================================
-        // FETCH SENSOR DATA
-        // =====================================================
-        async function fetchData() {
-            try {
-                const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${SENSOR_SHEET_NAME}`;
-                const response = await fetch(url);
-                const text = await response.text();
-
-                const jsonStart = text.indexOf('(') + 1;
-                const jsonEnd = text.lastIndexOf(')');
-                const jsonStr = text.substring(jsonStart, jsonEnd);
-                const data = JSON.parse(jsonStr);
-
-                if (data && data.table && data.table.rows && data.table.rows.length > 1) {
-                    const parsedData = parseGVizData(data);
-                    if (parsedData.length > 0) {
-                        if (parsedData.length > lastDataLength) {
-                            calculateSustainability(parsedData);
-                            lastDataLength = parsedData.length;
-                        }
-                        allData = parsedData;
-                        updateDashboard(parsedData);
-                        document.getElementById('loading').style.display = 'none';
-                        document.getElementById('dashboard').style.display = 'block';
-                    }
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                document.getElementById('statusText').textContent = '⚠️ Error loading data';
-            }
-        }
-
-        // =====================================================
-        // PARSE GVIZ
-        // =====================================================
-        function parseGVizData(data) {
-            const rows = data.table.rows;
-            const parsedData = [];
-
-            rows.forEach((row, rowIndex) => {
-                if (rowIndex === 0) return;
-                if (!row.c || row.c.length < 29) return;
-
-                const getVal = (idx) => parseFloat(row.c[idx]?.v) || 0;
-                const getStr = (idx) => row.c[idx]?.v || '';
-
-                let timestamp = getStr(0);
-                if (typeof timestamp === 'string' && timestamp.startsWith('Date(')) {
-                    const match = timestamp.match(/Date\(([^)]+)\)/);
-                    if (match) {
-                        const parts = match[1].split(',').map(num => parseInt(num.trim()));
-                        const date = new Date(parts[0], parts[1], parts[2], parts[3] || 0, parts[4] || 0, parts[5] || 0);
-                        timestamp = date.toISOString();
-                    }
-                }
-
-                const clampCo2 = (val) => Math.min(Math.max(val, 300), 5000);
-
-                parsedData.push({
-                    timestamp: timestamp,
-                    z1_temp: getVal(1), z1_hum: getVal(2), z1_co2: clampCo2(getVal(3)),
-                    z1_water: getVal(4), z1_mist: getVal(5), z1_exhaust: getVal(6), z1_error: getVal(7),
-                    z2_temp: getVal(8), z2_hum: getVal(9), z2_co2: clampCo2(getVal(10)),
-                    z2_water: getVal(11), z2_mist: getVal(12), z2_exhaust: getVal(13), z2_error: getVal(14),
-                    z3_temp: getVal(15), z3_hum: getVal(16), z3_co2: clampCo2(getVal(17)),
-                    z3_water: getVal(18), z3_mist: getVal(19), z3_exhaust: getVal(20), z3_error: getVal(21),
-                    water_used: getVal(22),
-                    energy_used: getVal(23),
-                    yield_kg: getVal(24),
-                    water_efficiency: getVal(25),
-                    energy_efficiency: getVal(26),
-                    specific_water: getVal(27),
-                    specific_energy: getVal(28)
-                });
+            // Add to history for charts
+            const timestamp = new Date().toISOString();
+            historyData.push({
+                timestamp: timestamp,
+                z1_temp: zoneData.z1.temp, z1_hum: zoneData.z1.hum, z1_co2: zoneData.z1.co2,
+                z1_mist: zoneData.z1.mist, z1_exhaust: zoneData.z1.exhaust,
+                z2_temp: zoneData.z2.temp, z2_hum: zoneData.z2.hum, z2_co2: zoneData.z2.co2,
+                z2_mist: zoneData.z2.mist, z2_exhaust: zoneData.z2.exhaust,
+                z3_temp: zoneData.z3.temp, z3_hum: zoneData.z3.hum, z3_co2: zoneData.z3.co2,
+                z3_mist: zoneData.z3.mist, z3_exhaust: zoneData.z3.exhaust
             });
 
-            return parsedData;
-        }
-
-        // =====================================================
-        // SUSTAINABILITY
-        // =====================================================
-        function calculateSustainability(data) {
-            const waterFlowRate = parseFloat(document.getElementById('waterFlowRate')?.value) || 2.5;
-            const fanPower = parseFloat(document.getElementById('fanPower')?.value) || 15;
-            const yieldKg = parseFloat(document.getElementById('yieldKg')?.value) || 0;
-
-            let totalMistRuntime = 0;
-            let totalFanRuntime = 0;
-            const intervalSeconds = 10;
-
-            for (let i = 0; i < data.length; i++) {
-                const mistCount = (data[i].z1_mist || 0) + (data[i].z2_mist || 0) + (data[i].z3_mist || 0);
-                const fanCount = (data[i].z1_exhaust || 0) + (data[i].z2_exhaust || 0) + (data[i].z3_exhaust || 0);
-                totalMistRuntime += mistCount * intervalSeconds;
-                totalFanRuntime += fanCount * intervalSeconds;
+            // Keep last 100 data points
+            if (historyData.length > 100) {
+                historyData = historyData.slice(-100);
             }
 
-            cumulativeWaterUsed = (totalMistRuntime * waterFlowRate) / 1000.0;
-            cumulativeEnergyUsed = (totalFanRuntime / 3600.0) * fanPower / 1000.0;
-
-            const waterEff = yieldKg > 0 ? yieldKg / (cumulativeWaterUsed + 0.001) : 0;
-            const energyEff = yieldKg > 0 ? yieldKg / (cumulativeEnergyUsed + 0.001) : 0;
-            const specWater = yieldKg > 0 ? cumulativeWaterUsed / (yieldKg + 0.001) : 0;
-            const specEnergy = yieldKg > 0 ? cumulativeEnergyUsed / (yieldKg + 0.001) : 0;
-
-            updateSustainabilityDisplay(cumulativeWaterUsed, cumulativeEnergyUsed, yieldKg, waterEff, energyEff, specWater, specEnergy);
-        }
-
-        function updateSustainabilityDisplay(waterUsed, energyUsed, yieldKg, waterEff, energyEff, specWater, specEnergy) {
-            const metrics = [
-                { label: 'Water Use Efficiency', value: waterEff, unit: 'kg/L', color: 'green' },
-                { label: 'Energy Use Efficiency', value: energyEff, unit: 'kg/kWh', color: 'blue' },
-                { label: 'Specific Water', value: specWater, unit: 'L/kg', color: 'orange' },
-                { label: 'Specific Energy', value: specEnergy, unit: 'kWh/kg', color: 'purple' },
-                { label: 'Total Water Used', value: waterUsed, unit: 'L', color: 'blue' },
-                { label: 'Total Energy Used', value: energyUsed, unit: 'kWh', color: 'orange' },
-                { label: 'Yield', value: yieldKg, unit: 'kg', color: 'green' }
-            ];
-
-            let html = '';
-            metrics.forEach(m => {
-                html += `
-                    <div class="sustainability-card">
-                        <div class="label">${m.label}</div>
-                        <div class="value ${m.color}">${m.value.toFixed(2)}</div>
-                        <div class="unit">${m.unit}</div>
-                    </div>
-                `;
-            });
-            document.getElementById('sustainabilityGrid').innerHTML = html;
+            updateDashboard();
         }
 
         // =====================================================
         // UPDATE DASHBOARD
         // =====================================================
-        function updateDashboard(data) {
-            const latest = data[data.length - 1];
-
+        function updateDashboard() {
+            const zones = ['z1', 'z2', 'z3'];
             let html = '';
             let alarmCount = 0;
             let mistCount = 0;
 
             for (let i = 0; i < 3; i++) {
+                const key = zones[i];
+                const z = zoneData[key];
                 const idx = i + 1;
-                const prefix = `z${idx}`;
-                const temp = latest[`${prefix}_temp`] || 0;
-                const hum = latest[`${prefix}_hum`] || 0;
-                const co2 = latest[`${prefix}_co2`] || 0;
-                const water = latest[`${prefix}_water`] || 0;
-                const mist = latest[`${prefix}_mist`] || 0;
-                const exhaust = latest[`${prefix}_exhaust`] || 0;
-                const error = latest[`${prefix}_error`] || 0;
 
-                if (water === 0 && !lastAlarmState[prefix]) {
+                // Alarm detection
+                if (z.water === 0 && !lastAlarmState[key]) {
                     sendNotification(`🔴 Alarm Zone ${idx}`, 'Water level empty!');
-                    lastAlarmState[prefix] = true;
-                } else if (water === 1 && lastAlarmState[prefix]) {
+                    lastAlarmState[key] = true;
+                } else if (z.water === 1 && lastAlarmState[key]) {
                     sendNotification(`✅ Alarm Cleared Zone ${idx}`, 'Water level restored');
-                    lastAlarmState[prefix] = false;
-                }
-                if (mist && !lastMistState[prefix]) {
-                    sendNotification(`🌫️ Mist ON Zone ${idx}`, 'Misting started');
-                    lastMistState[prefix] = true;
-                } else if (!mist && lastMistState[prefix]) {
-                    sendNotification(`⭕ Mist OFF Zone ${idx}`, 'Misting stopped');
-                    lastMistState[prefix] = false;
-                }
-                if (exhaust && !lastExhaustState[prefix]) {
-                    sendNotification(`💨 Exhaust ON Zone ${idx}`, 'Exhaust fan started');
-                    lastExhaustState[prefix] = true;
-                } else if (!exhaust && lastExhaustState[prefix]) {
-                    sendNotification(`⭕ Exhaust OFF Zone ${idx}`, 'Exhaust fan stopped');
-                    lastExhaustState[prefix] = false;
+                    lastAlarmState[key] = false;
                 }
 
-                if (water === 0) alarmCount++;
-                if (mist) mistCount++;
+                if (z.water === 0) alarmCount++;
+                if (z.mist === 1) mistCount++;
 
-                const tempStatus = temp > 30 ? 'danger' : temp > 28 ? 'warning' : 'good';
-                const humStatus = hum < 80 ? 'warning' : hum > 90 ? 'warning' : 'good';
-                const co2Status = co2 > 800 ? 'danger' : co2 > 600 ? 'warning' : 'good';
-                const waterStatus = water === 1 ? 'good' : 'danger';
-                const waterText = water === 1 ? 'Present' : 'Empty';
-                const waterIcon = water === 1 ? '✅' : '❌';
-                const displayCo2 = co2 > 5000 ? '>5000' : co2.toFixed(0);
+                const tempStatus = z.temp > 30 ? 'danger' : z.temp > 28 ? 'warning' : 'good';
+                const humStatus = z.hum < 80 ? 'warning' : z.hum > 90 ? 'warning' : 'good';
+                const co2Status = z.co2 > 800 ? 'danger' : z.co2 > 600 ? 'warning' : 'good';
+                const waterStatus = z.water === 1 ? 'good' : 'danger';
+                const waterText = z.water === 1 ? 'Present' : 'Empty';
+                const waterIcon = z.water === 1 ? '✅' : '❌';
+                const displayCo2 = z.co2 > 5000 ? '>5000' : z.co2.toFixed(0);
 
                 const position = zonePositions[i];
                 const badge = zoneBadges[i];
@@ -1014,12 +737,12 @@
                         <div class="sensor-grid">
                             <div class="sensor-item">
                                 <div class="label">🌡️ Temp</div>
-                                <div class="value temp ${tempStatus}">${temp.toFixed(1)}</div>
+                                <div class="value temp ${tempStatus}">${z.temp.toFixed(1)}</div>
                                 <div class="unit">°C</div>
                             </div>
                             <div class="sensor-item">
                                 <div class="label">💧 Humidity</div>
-                                <div class="value hum ${humStatus}">${hum.toFixed(1)}</div>
+                                <div class="value hum ${humStatus}">${z.hum.toFixed(1)}</div>
                                 <div class="unit">%</div>
                             </div>
                             <div class="sensor-item">
@@ -1034,36 +757,27 @@
                             </div>
                             <div class="sensor-item">
                                 <div class="label">🌫️ Mist</div>
-                                <div class="value">${mist ? '🟢 ON' : '⭕ OFF'}</div>
-                                <div class="unit">${mist ? 'Active' : 'Idle'}</div>
+                                <div class="value">${z.mist === 1 ? '🟢 ON' : '⭕ OFF'}</div>
+                                <div class="unit">${z.mist === 1 ? 'Active' : 'Idle'}</div>
                             </div>
                             <div class="sensor-item">
                                 <div class="label">💨 Exhaust</div>
-                                <div class="value">${exhaust ? '🟢 ON' : '⭕ OFF'}</div>
-                                <div class="unit">${exhaust ? 'Active' : 'Idle'}</div>
+                                <div class="value">${z.exhaust === 1 ? '🟢 ON' : '⭕ OFF'}</div>
+                                <div class="unit">${z.exhaust === 1 ? 'Active' : 'Idle'}</div>
                             </div>
                         </div>
                         <div class="control-status">
                             <div class="control-item">
                                 <span class="label">🌫️ Mist</span>
-                                <span class="status ${mist ? 'misting' : 'off'}">${mist ? '🟢 ON' : '⭕ OFF'}</span>
+                                <span class="status ${z.mist === 1 ? 'misting' : 'off'}">${z.mist === 1 ? '🟢 ON' : '⭕ OFF'}</span>
                             </div>
                             <div class="control-item">
                                 <span class="label">💨 Exhaust</span>
-                                <span class="status ${exhaust ? 'on' : 'off'}">${exhaust ? '🟢 ON' : '⭕ OFF'}</span>
+                                <span class="status ${z.exhaust === 1 ? 'on' : 'off'}">${z.exhaust === 1 ? '🟢 ON' : '⭕ OFF'}</span>
                             </div>
                             <div class="control-item">
                                 <span class="label">💧 Water</span>
-                                <span class="status ${water === 0 ? 'alarm' : 'off'}">${water ? '✅ OK' : '🔴 EMPTY'}</span>
-                            </div>
-                        </div>
-                        <div class="manual-control">
-                            <span class="label">📡 Manual Control (MQTT)</span>
-                            <div class="btn-group">
-                                <button class="btn-on" onclick="sendMQTT(${idx},'mist','ON')">Mist ON</button>
-                                <button class="btn-off" onclick="sendMQTT(${idx},'mist','OFF')">Mist OFF</button>
-                                <button class="btn-on" onclick="sendMQTT(${idx},'exhaust','ON')">Exhaust ON</button>
-                                <button class="btn-off" onclick="sendMQTT(${idx},'exhaust','OFF')">Exhaust OFF</button>
+                                <span class="status ${z.water === 0 ? 'alarm' : 'off'}">${z.water === 1 ? '✅ OK' : '🔴 EMPTY'}</span>
                             </div>
                         </div>
                     </div>
@@ -1075,41 +789,53 @@
             document.getElementById('alarmBadge').textContent = `${alarmCount} Active`;
             document.getElementById('navAlarmBadge').textContent = alarmCount;
             document.getElementById('zoneStatus').textContent = `🌫️ Mist: ${mistCount}/3`;
-            document.getElementById('rowCount').textContent = `Records: ${data.length}`;
             document.getElementById('lastUpdate').textContent = `Last update: ${new Date().toLocaleString()}`;
 
-            updateChart(data, currentParam);
+            // Update chart
+            updateChart(historyData.slice(-30), currentParam);
         }
 
         // =====================================================
-        // UPDATE CHART
+        // NOTIFICATION
+        // =====================================================
+        function sendNotification(title, body, icon = '🍄') {
+            if (!('Notification' in window)) return;
+            if (Notification.permission === 'granted') {
+                new Notification(`🍄 ${title}`, { body, icon });
+            } else if (Notification.permission !== 'denied') {
+                Notification.requestPermission();
+            }
+        }
+
+        // =====================================================
+        // NAVIGATION
+        // =====================================================
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+            const target = document.getElementById(`section-${sectionId}`);
+            if (target) target.classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.section === sectionId) btn.classList.add('active');
+            });
+        }
+
+        // =====================================================
+        // CHART
         // =====================================================
         function updateChart(data, param) {
-            const chartData = data.slice(-30);
+            if (data.length === 0) return;
+
             const config = chartConfigs[param];
             if (!config) return;
 
-            const labels = chartData.map(d => {
-                try {
-                    const date = new Date(d.timestamp);
-                    if (!isNaN(date.getTime())) return dateFormatter.format(date);
-                    return '--';
-                } catch { return '--'; }
-            });
+            const labels = data.map(d => new Date(d.timestamp).toLocaleTimeString());
 
-            const datasets = config.keys.map((key, index) => ({
-                label: zoneLabels[index],
-                data: chartData.map(d => {
-                    const val = d[key] || 0;
-                    if (key.includes('co2')) return Math.min(Math.max(val, 300), 5000);
-                    return val;
-                }),
-                borderColor: config.colors[index],
-                backgroundColor: config.colors[index] + '33',
-                borderWidth: 2,
-                tension: 0.4,
-                fill: true
-            }));
+            const datasets = [
+                { label: 'Zone 1', data: data.map(d => d[`z1_${param}`]), borderColor: '#e74c3c', backgroundColor: 'rgba(231,76,60,0.1)', borderWidth: 2, tension: 0.4, fill: true },
+                { label: 'Zone 2', data: data.map(d => d[`z2_${param}`]), borderColor: '#3498db', backgroundColor: 'rgba(52,152,219,0.1)', borderWidth: 2, tension: 0.4, fill: true },
+                { label: 'Zone 3', data: data.map(d => d[`z3_${param}`]), borderColor: '#9b59b6', backgroundColor: 'rgba(155,89,182,0.1)', borderWidth: 2, tension: 0.4, fill: true }
+            ];
 
             if (chart) chart.destroy();
 
@@ -1145,15 +871,20 @@
             document.querySelectorAll('.chart-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.param === param);
             });
-            if (allData.length > 0) updateChart(allData, param);
+            updateChart(historyData.slice(-30), param);
         }
 
         // =====================================================
-        // CONFIGURATION FUNCTIONS
+        // PUBLISH CONFIG TO ESP32
         // =====================================================
-        function saveConfig() {
+        function publishConfig() {
+            if (!mqttConnected || !mqttClient) {
+                document.getElementById('configStatus').textContent = '❌ MQTT not connected!';
+                document.getElementById('configStatus').style.color = '#e74c3c';
+                return;
+            }
+
             const config = {
-                type: 'config',
                 targetHumidity: parseFloat(document.getElementById('targetHumidity').value),
                 humidityTolerance: parseFloat(document.getElementById('humidityTolerance').value),
                 mistPulseOn: parseInt(document.getElementById('mistPulseOn').value),
@@ -1168,21 +899,15 @@
                 yieldKg: parseFloat(document.getElementById('yieldKg').value)
             };
 
+            const payload = JSON.stringify(config);
+            mqttClient.publish(MQTT_TOPIC_CONFIG_SET, payload);
+
+            // Save to localStorage
             localStorage.setItem('mushroomConfig', JSON.stringify(config));
 
-            fetch(APPS_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(config)
-            });
-
-            const status = document.getElementById('configStatus');
-            status.textContent = '✅ Configuration saved successfully!';
-            status.style.color = '#2ecc71';
-            setTimeout(() => status.textContent = '', 3000);
-
-            if (allData.length > 0) calculateSustainability(allData);
+            document.getElementById('configStatus').textContent = '✅ Config published to ESP32!';
+            document.getElementById('configStatus').style.color = '#2ecc71';
+            setTimeout(() => document.getElementById('configStatus').textContent = '', 3000);
         }
 
         function resetConfig() {
@@ -1207,46 +932,9 @@
             });
 
             localStorage.removeItem('mushroomConfig');
-            const status = document.getElementById('configStatus');
-            status.textContent = '↩️ Reset to default values';
-            status.style.color = '#f39c12';
-            setTimeout(() => status.textContent = '', 3000);
-
-            if (allData.length > 0) calculateSustainability(allData);
-        }
-
-        async function loadConfigFromSheet() {
-            try {
-                const response = await fetch(`${APPS_SCRIPT_URL}?action=config`);
-                const config = await response.json();
-
-                document.getElementById('targetHumidity').value = config.targetHumidity || 85;
-                document.getElementById('humidityTolerance').value = config.humidityTolerance || 3;
-                document.getElementById('mistPulseOn').value = config.mistPulseOn || 3000;
-                document.getElementById('mistPulseOff').value = config.mistPulseOff || 5000;
-                document.getElementById('mistMaxDuration').value = config.mistMaxDuration || 30000;
-                document.getElementById('co2Threshold').value = config.co2Threshold || 800;
-                document.getElementById('tempFanOn').value = config.tempFanOn || 30;
-                document.getElementById('tempFanOff').value = config.tempFanOff || 28;
-                document.getElementById('mq135_r0').value = config.mq135_r0 || 15;
-                document.getElementById('waterFlowRate').value = config.waterFlowRate || 2.5;
-                document.getElementById('fanPower').value = config.fanPower || 15;
-                document.getElementById('yieldKg').value = config.yieldKg || 0;
-
-                localStorage.setItem('mushroomConfig', JSON.stringify(config));
-
-                const status = document.getElementById('configStatus');
-                status.textContent = '✅ Config loaded from sheet!';
-                status.style.color = '#2ecc71';
-                setTimeout(() => status.textContent = '', 3000);
-
-                if (allData.length > 0) calculateSustainability(allData);
-            } catch (error) {
-                console.error('Error loading config:', error);
-                const status = document.getElementById('configStatus');
-                status.textContent = '❌ Failed to load config';
-                status.style.color = '#e74c3c';
-            }
+            document.getElementById('configStatus').textContent = '↩️ Reset to default values';
+            document.getElementById('configStatus').style.color = '#f39c12';
+            setTimeout(() => document.getElementById('configStatus').textContent = '', 3000);
         }
 
         function loadConfig() {
@@ -1265,19 +953,8 @@
         // =====================================================
         // INIT
         // =====================================================
-        connectMQTT();
         loadConfig();
-        fetchData();
-        fetchAlarms();
-        updateInterval = setInterval(() => {
-            fetchData();
-            fetchAlarms();
-        }, 10000);
-
-        window.addEventListener('beforeunload', () => {
-            if (updateInterval) clearInterval(updateInterval);
-            if (mqttClient) mqttClient.end();
-        });
+        connectMQTT();
     </script>
 </body>
 </html>
