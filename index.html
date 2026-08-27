@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🍄 Smart Multi-Zone Mushroom System</title>
     <style>
-        /* ===== SAMA SEPERTI SEBELUMNYA (saya ringkaskan) ===== */
+        /* ===== SAMA SEPERTI SEBELUMNYA – saya pendekkan sikit tapi lengkap ===== */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -179,31 +179,6 @@
         .value.good { color: #2ecc71; }
         .value.warning { color: #f39c12; }
         .value.danger { color: #e74c3c; }
-        .control-status {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 6px;
-            margin-top: 8px;
-            padding-top: 10px;
-            border-top: 1px solid rgba(255,255,255,0.05);
-        }
-        .control-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 4px 6px;
-            background: rgba(255,255,255,0.02);
-            border-radius: 4px;
-            font-size: 0.65rem;
-        }
-        .control-item .label { color: #666; font-size: 0.5rem; text-transform: uppercase; }
-        .control-item .status { font-weight: bold; margin-top: 2px; }
-        .status.on { color: #2ecc71; }
-        .status.off { color: #555; }
-        .status.misting { color: #3498db; }
-        .status.alarm { color: #e74c3c; animation: blink 1s infinite; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-
         .manual-control {
             margin-top: 12px;
             padding-top: 12px;
@@ -667,7 +642,7 @@
         }
 
         // =====================================================
-        // FETCH ALARMS USING GVIZ (FIXED - NO CORS!)
+        // FETCH ALARMS USING GVIZ (NO CORS)
         // =====================================================
         async function fetchAlarms() {
             try {
@@ -777,7 +752,7 @@
                     }
                 }
             } catch (error) {
-                console.warn('Alarm fetch failed (using GViz):', error);
+                console.warn('Alarm fetch failed (GViz):', error);
             }
         }
 
@@ -1029,20 +1004,6 @@
                                 <div class="unit">${exhaust ? 'Active' : 'Idle'}</div>
                             </div>
                         </div>
-                        <div class="control-status">
-                            <div class="control-item">
-                                <span class="label">🌫️ Mist</span>
-                                <span class="status ${mist ? 'misting' : 'off'}">${mist ? '🟢 ON' : '⭕ OFF'}</span>
-                            </div>
-                            <div class="control-item">
-                                <span class="label">💨 Exhaust</span>
-                                <span class="status ${exhaust ? 'on' : 'off'}">${exhaust ? '🟢 ON' : '⭕ OFF'}</span>
-                            </div>
-                            <div class="control-item">
-                                <span class="label">💧 Water</span>
-                                <span class="status ${water === 0 ? 'alarm' : 'off'}">${water ? '✅ OK' : '🔴 EMPTY'}</span>
-                            </div>
-                        </div>
                         <div class="manual-control">
                             <span class="label">📡 Manual Control (MQTT)</span>
                             <div class="btn-group">
@@ -1242,7 +1203,7 @@
                     const config = JSON.parse(saved);
                     Object.keys(config).forEach(key => {
                         const el = document.getElementById(key);
-                        if (el) el.value = config[key]);
+                        if (el) el.value = config[key];
                     });
                 } catch (e) {}
             }
