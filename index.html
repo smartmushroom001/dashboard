@@ -445,7 +445,7 @@
     <div class="container">
         <div class="header">
             <h1>🍄 Smart Multi-Zone Mushroom System</h1>
-            <p class="subtitle">MQTT Real-time • 3 Zones • CO₂ • Temperature • Humidity</p>
+            <p class="subtitle">MQTT Real-time • 3 Zones • CO₂ • Temperature • Humidity • Sustainability</p>
         </div>
 
         <div id="loading" class="loading">
@@ -488,7 +488,7 @@
                 <div class="sustainability-section">
                     <div class="sustainability-grid" id="sustainabilityGrid"></div>
                     <div class="sustainability-note">
-                        💡 Sustainability metrics are <span class="highlight">calculated/simulated</span> based on mist and fan runtime.
+                        💡 Sustainability metrics are <span class="highlight">calculated</span> based on mist and fan runtime.
                         <br>🔹 Water Flow Rate: <span class="highlight">2.5 mL/s</span> | 🔹 Fan Power: <span class="highlight">15W</span>
                         <br>📝 Enter Yield (kg) in the <span class="highlight">Configuration</span> tab to see efficiency metrics.
                     </div>
@@ -584,6 +584,9 @@
         };
         let historyData = [];
         let lastAlarmState = { z1: false, z2: false, z3: false };
+        let cumulativeMistRuntime = 0;
+        let cumulativeFanRuntime = 0;
+        const INTERVAL_SECONDS = 3; // MQTT publish interval
 
         const zoneLabels = ['Zone 1', 'Zone 2', 'Zone 3'];
         const zonePositions = ['Top', 'Middle', 'Bottom'];
@@ -611,7 +614,7 @@
                     document.getElementById('loading').style.display = 'none';
                     document.getElementById('dashboard').style.display = 'block';
 
-                    // Subscribe to sensor topics
+                    // Subscribe to all topics
                     mqttClient.subscribe(MQTT_TOPIC_SENSORS_1);
                     mqttClient.subscribe(MQTT_TOPIC_SENSORS_2);
                     mqttClient.subscribe(MQTT_TOPIC_SENSORS_3);
@@ -641,6 +644,17 @@
         // HANDLE MQTT MESSAGES
         // =====================================================
         function handleMQTTMessage(topic, payload) {
+            // Handle status topic separately (plain text)
+            if (topic === MQTT_TOPIC_STATUS) {
+                if (payload === 'online') {
+                    document.getElementById('statusText').textContent = '🟢 Online';
+                } else {
+                    document.getElementById('statusText').textContent = '🔴 Offline';
+                }
+                return;
+            }
+
+            // Sensor topics: expect JSON
             try {
                 const data = JSON.parse(payload);
 
@@ -650,8 +664,6 @@
                     updateZoneData('z2', data);
                 } else if (topic === MQTT_TOPIC_SENSORS_3) {
                     updateZoneData('z3', data);
-                } else if (topic === MQTT_TOPIC_STATUS) {
-                    document.getElementById('statusText').textContent = payload === 'online' ? '🟢 Online' : '🔴 Offline';
                 }
             } catch (e) {
                 console.warn('Invalid MQTT payload:', payload);
@@ -671,6 +683,10 @@
             zone.exhaust = data.exhaust || 0;
             zone.error = data.error || 0;
 
+            // Update sustainability runtime (each data point represents INTERVAL_SECONDS)
+            if (zone.mist === 1) cumulativeMistRuntime += INTERVAL_SECONDS;
+            if (zone.exhaust === 1) cumulativeFanRuntime += INTERVAL_SECONDS;
+
             // Add to history for charts
             const timestamp = new Date().toISOString();
             historyData.push({
@@ -683,12 +699,55 @@
                 z3_mist: zoneData.z3.mist, z3_exhaust: zoneData.z3.exhaust
             });
 
-            // Keep last 100 data points
             if (historyData.length > 100) {
                 historyData = historyData.slice(-100);
             }
 
             updateDashboard();
+            updateSustainability();
+        }
+
+        // =====================================================
+        // UPDATE SUSTAINABILITY
+        // =====================================================
+        function updateSustainability() {
+            // Read config values
+            const waterFlowRate = parseFloat(document.getElementById('waterFlowRate')?.value) || 2.5; // mL/s
+            const fanPower = parseFloat(document.getElementById('fanPower')?.value) || 15; // W
+            const yieldKg = parseFloat(document.getElementById('yieldKg')?.value) || 0;
+
+            // Total water used (L)
+            const waterUsed = (cumulativeMistRuntime * waterFlowRate) / 1000.0;
+            // Total energy used (kWh)
+            const energyUsed = (cumulativeFanRuntime / 3600.0) * fanPower / 1000.0;
+
+            // Efficiency metrics
+            const waterEfficiency = yieldKg > 0 ? yieldKg / (waterUsed + 0.001) : 0;
+            const energyEfficiency = yieldKg > 0 ? yieldKg / (energyUsed + 0.001) : 0;
+            const specificWater = yieldKg > 0 ? waterUsed / (yieldKg + 0.001) : 0;
+            const specificEnergy = yieldKg > 0 ? energyUsed / (yieldKg + 0.001) : 0;
+
+            const metrics = [
+                { label: 'Water Use Efficiency', value: waterEfficiency, unit: 'kg/L', color: 'green' },
+                { label: 'Energy Use Efficiency', value: energyEfficiency, unit: 'kg/kWh', color: 'blue' },
+                { label: 'Specific Water', value: specificWater, unit: 'L/kg', color: 'orange' },
+                { label: 'Specific Energy', value: specificEnergy, unit: 'kWh/kg', color: 'purple' },
+                { label: 'Total Water Used', value: waterUsed, unit: 'L', color: 'blue' },
+                { label: 'Total Energy Used', value: energyUsed, unit: 'kWh', color: 'orange' },
+                { label: 'Yield', value: yieldKg, unit: 'kg', color: 'green' }
+            ];
+
+            let html = '';
+            metrics.forEach(m => {
+                html += `
+                    <div class="sustainability-card">
+                        <div class="label">${m.label}</div>
+                        <div class="value ${m.color}">${m.value.toFixed(2)}</div>
+                        <div class="unit">${m.unit}</div>
+                    </div>
+                `;
+            });
+            document.getElementById('sustainabilityGrid').innerHTML = html;
         }
 
         // =====================================================
@@ -705,7 +764,7 @@
                 const z = zoneData[key];
                 const idx = i + 1;
 
-                // Alarm detection
+                // Alarm detection – if water is 0 (empty), alarm active
                 if (z.water === 0 && !lastAlarmState[key]) {
                     sendNotification(`🔴 Alarm Zone ${idx}`, 'Water level empty!');
                     lastAlarmState[key] = true;
@@ -780,6 +839,15 @@
                                 <span class="status ${z.water === 0 ? 'alarm' : 'off'}">${z.water === 1 ? '✅ OK' : '🔴 EMPTY'}</span>
                             </div>
                         </div>
+                        <div class="manual-control">
+                            <span class="label">📡 Manual Control (MQTT)</span>
+                            <div class="btn-group">
+                                <button class="btn-on" onclick="sendMQTT(${idx},'mist','ON')">Mist ON</button>
+                                <button class="btn-off" onclick="sendMQTT(${idx},'mist','OFF')">Mist OFF</button>
+                                <button class="btn-on" onclick="sendMQTT(${idx},'exhaust','ON')">Exhaust ON</button>
+                                <button class="btn-off" onclick="sendMQTT(${idx},'exhaust','OFF')">Exhaust OFF</button>
+                            </div>
+                        </div>
                     </div>
                 `;
             }
@@ -792,7 +860,22 @@
             document.getElementById('lastUpdate').textContent = `Last update: ${new Date().toLocaleString()}`;
 
             // Update chart
-            updateChart(historyData.slice(-30), currentParam);
+            if (historyData.length > 0) {
+                updateChart(historyData.slice(-30), currentParam);
+            }
+        }
+
+        // =====================================================
+        // MANUAL MQTT CONTROL
+        // =====================================================
+        function sendMQTT(zone, device, state) {
+            if (!mqttConnected || !mqttClient) {
+                alert('MQTT not connected. Please wait or refresh.');
+                return;
+            }
+            const topic = `mushroom/zone${zone}/${device}/set`;
+            mqttClient.publish(topic, state);
+            console.log(`Sent ${state} to ${topic}`);
         }
 
         // =====================================================
@@ -818,6 +901,10 @@
                 btn.classList.remove('active');
                 if (btn.dataset.section === sectionId) btn.classList.add('active');
             });
+            // Update chart when switching to charts section
+            if (sectionId === 'charts' && historyData.length > 0) {
+                updateChart(historyData.slice(-30), currentParam);
+            }
         }
 
         // =====================================================
@@ -871,7 +958,9 @@
             document.querySelectorAll('.chart-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.param === param);
             });
-            updateChart(historyData.slice(-30), param);
+            if (historyData.length > 0) {
+                updateChart(historyData.slice(-30), param);
+            }
         }
 
         // =====================================================
@@ -908,6 +997,9 @@
             document.getElementById('configStatus').textContent = '✅ Config published to ESP32!';
             document.getElementById('configStatus').style.color = '#2ecc71';
             setTimeout(() => document.getElementById('configStatus').textContent = '', 3000);
+
+            // Update sustainability with new values
+            updateSustainability();
         }
 
         function resetConfig() {
@@ -935,6 +1027,8 @@
             document.getElementById('configStatus').textContent = '↩️ Reset to default values';
             document.getElementById('configStatus').style.color = '#f39c12';
             setTimeout(() => document.getElementById('configStatus').textContent = '', 3000);
+
+            updateSustainability();
         }
 
         function loadConfig() {
