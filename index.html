@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🍄 Smart Multi-Zone Mushroom System</title>
     <style>
-        /* (sama macam sebelumnya, saya ringkaskan untuk menjimatkan ruang) */
+        /* ===== SAME STYLE AS BEFORE (keep your existing CSS) ===== */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -203,6 +203,7 @@
         .status.misting { color: #3498db; }
         .status.alarm { color: #e74c3c; animation: blink 1s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
         .manual-control {
             margin-top: 12px;
             padding-top: 12px;
@@ -233,6 +234,7 @@
         .manual-control .btn-group .btn-on:hover { background: #27ae60; }
         .manual-control .btn-group .btn-off { background: #e74c3c; color: #fff; }
         .manual-control .btn-group .btn-off:hover { background: #c0392b; }
+
         .sustainability-section {
             background: rgba(255,255,255,0.03);
             border-radius: 12px;
@@ -278,6 +280,7 @@
             border-top: 1px solid rgba(255,255,255,0.05);
         }
         .sustainability-note .highlight { color: #f39c12; }
+
         .chart-container {
             background: rgba(255,255,255,0.03);
             border-radius: 12px;
@@ -310,6 +313,7 @@
         .chart-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
         .chart-btn.active { background: rgba(255,255,255,0.12); color: #fff; border-color: rgba(255,255,255,0.2); }
         #sensorChart { width: 100% !important; height: 320px !important; }
+
         .alarms-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -343,6 +347,7 @@
         .alarm-item .time { color: #555; font-size: 0.65rem; }
         .alarm-item .zone-tag { font-size: 0.55rem; padding: 1px 8px; border-radius: 10px; background: rgba(255,255,255,0.05); }
         .empty-state { text-align: center; color: #555; padding: 20px; font-size: 0.8rem; }
+
         .config-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -403,6 +408,7 @@
         .config-btn.load { background: rgba(52,152,219,0.2); color: #3498db; border: 1px solid rgba(52,152,219,0.2); }
         .config-btn.load:hover { background: rgba(52,152,219,0.3); }
         #configStatus { text-align: center; font-size: 0.75rem; margin-top: 10px; color: #2ecc71; }
+
         .loading { text-align: center; padding: 80px 0; }
         .spinner {
             display: inline-block;
@@ -429,6 +435,7 @@
         }
         .refresh-btn:hover { transform: scale(1.05); box-shadow: 0 5px 20px rgba(245, 87, 108, 0.3); }
         .auto-refresh { text-align: center; color: #444; font-size: 0.6rem; margin-top: 5px; }
+
         @media (max-width: 768px) {
             .rack-grid { grid-template-columns: 1fr; }
             .alarms-grid { grid-template-columns: 1fr; }
@@ -458,7 +465,6 @@
         </div>
 
         <div id="dashboard" style="display:none;">
-            <!-- Status Bar -->
             <div class="status-bar">
                 <div class="status-item">
                     <span class="status-dot online" id="statusDot"></span>
@@ -471,7 +477,6 @@
                 <div class="status-item"><span id="mqttStatus">📡 MQTT: Disconnected</span></div>
             </div>
 
-            <!-- Navigation -->
             <nav class="nav-bar">
                 <button class="nav-btn active" data-section="realtime" onclick="showSection('realtime')">📊 Realtime <span class="badge">Live</span></button>
                 <button class="nav-btn" data-section="sustainability" onclick="showSection('sustainability')">🌱 Sustainability <span class="badge">Metrics</span></button>
@@ -570,7 +575,8 @@
         // KONFIGURASI
         // =====================================================
         const SHEET_ID = '1zUDsxfZpBhXHpHFT_62ykMpH1wp9W69gH6lgMdD1ris';
-        const SHEET_NAME = 'SensorData';
+        const SENSOR_SHEET_NAME = 'SensorData';
+        const ALARM_SHEET_NAME = 'AlarmLog';
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbymCE9xnG42hiZa6UfqNzyy1FQcz2zPEl5EK_3LuWFRkxHSkWRNNyPowtnsUtotmRHZfg/exec';
         const MQTT_BROKER = 'wss://broker.emqx.io:8084/mqtt';
 
@@ -605,7 +611,7 @@
         });
 
         // =====================================================
-        // CHART CONFIGS & LABELS (GLOBAL)
+        // CHART CONFIGS & LABELS
         // =====================================================
         const chartConfigs = {
             temp: { title: '📊 Temperature Trends (°C)', yLabel: 'Temperature (°C)', keys: ['z1_temp', 'z2_temp', 'z3_temp'], colors: ['#e74c3c', '#c0392b', '#e67e22'] },
@@ -615,9 +621,7 @@
             exhaust: { title: '📊 Exhaust Active Status', yLabel: 'Exhaust (0/1)', keys: ['z1_exhaust', 'z2_exhaust', 'z3_exhaust'], colors: ['#9b59b6', '#8e44ad', '#6c3483'] }
         };
 
-        // INI YANG PENTING – mesti wujud untuk digunakan dalam updateChart
         const zoneLabels = ['Zone 1', 'Zone 2', 'Zone 3'];
-        const zoneColors = ['#2ecc71', '#3498db', '#9b59b6'];
         const zonePositions = ['Top', 'Middle', 'Bottom'];
         const zoneBadges = ['badge-top', 'badge-middle', 'badge-bottom'];
 
@@ -677,21 +681,80 @@
         }
 
         // =====================================================
-        // FETCH ALARMS (SENYAP JIKA GAGAL)
+        // FETCH ALARMS USING GVIZ (No CORS!)
         // =====================================================
         async function fetchAlarms() {
             try {
-                const response = await fetch(`${APPS_SCRIPT_URL}?action=alarms&limit=50`, {
-                    mode: 'cors',
-                    headers: { 'Accept': 'application/json' }
-                });
-                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-                const alarms = await response.json();
-                if (Array.isArray(alarms)) {
+                const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${ALARM_SHEET_NAME}`;
+                const response = await fetch(url);
+                const text = await response.text();
+
+                const jsonStart = text.indexOf('(') + 1;
+                const jsonEnd = text.lastIndexOf(')');
+                const jsonStr = text.substring(jsonStart, jsonEnd);
+                const data = JSON.parse(jsonStr);
+
+                if (data && data.table && data.table.rows && data.table.rows.length > 1) {
+                    const rows = data.table.rows;
+                    const cols = data.table.cols;
+
+                    // Find column indices
+                    let idx = { timestamp: 0, zone: 1, type: 2, message: 3, value: 4, status: 5, clearedAt: 6 };
+                    cols.forEach((col, index) => {
+                        const label = col.label.toLowerCase().trim();
+                        if (label.includes('timestamp')) idx.timestamp = index;
+                        else if (label.includes('zone')) idx.zone = index;
+                        else if (label.includes('type')) idx.type = index;
+                        else if (label.includes('message')) idx.message = index;
+                        else if (label.includes('value')) idx.value = index;
+                        else if (label.includes('status')) idx.status = index;
+                        else if (label.includes('clearedat')) idx.clearedAt = index;
+                    });
+
+                    const alarms = [];
+                    rows.forEach((row, rowIndex) => {
+                        if (rowIndex === 0) return;
+                        if (!row.c) return;
+
+                        const getVal = (i) => row.c[i]?.v || '';
+                        const status = String(getVal(idx.status) || 'ACTIVE').toUpperCase();
+
+                        // Parse timestamp
+                        let timestamp = getVal(idx.timestamp);
+                        if (typeof timestamp === 'string' && timestamp.startsWith('Date(')) {
+                            const match = timestamp.match(/Date\(([^)]+)\)/);
+                            if (match) {
+                                const parts = match[1].split(',').map(num => parseInt(num.trim()));
+                                const date = new Date(parts[0], parts[1], parts[2], parts[3] || 0, parts[4] || 0, parts[5] || 0);
+                                timestamp = date.toISOString();
+                            }
+                        }
+
+                        let clearedAt = getVal(idx.clearedAt);
+                        if (typeof clearedAt === 'string' && clearedAt.startsWith('Date(')) {
+                            const match = clearedAt.match(/Date\(([^)]+)\)/);
+                            if (match) {
+                                const parts = match[1].split(',').map(num => parseInt(num.trim()));
+                                const date = new Date(parts[0], parts[1], parts[2], parts[3] || 0, parts[4] || 0, parts[5] || 0);
+                                clearedAt = date.toISOString();
+                            }
+                        }
+
+                        alarms.push({
+                            timestamp: timestamp,
+                            zone: parseInt(getVal(idx.zone)) || 0,
+                            type: String(getVal(idx.type) || 'UNKNOWN'),
+                            message: String(getVal(idx.message) || 'No message'),
+                            value: parseFloat(getVal(idx.value)) || 0,
+                            status: status,
+                            clearedAt: clearedAt
+                        });
+                    });
+
+                    // Display alarms
                     const active = alarms.filter(a => a.status === 'ACTIVE');
                     const cleared = alarms.filter(a => a.status === 'CLEARED');
 
-                    // Active alarms
                     if (active.length === 0) {
                         document.getElementById('activeAlarms').innerHTML = '<div class="empty-state">No active alarms</div>';
                     } else {
@@ -709,14 +772,13 @@
                         document.getElementById('activeAlarms').innerHTML = html;
                     }
 
-                    // Cleared alarms
                     if (cleared.length === 0) {
                         document.getElementById('clearedAlarms').innerHTML = '<div class="empty-state">No cleared alarms</div>';
                     } else {
                         let html = '';
                         cleared.slice(-10).reverse().forEach(a => {
                             const time = new Date(a.timestamp);
-                            const clearedAt = a.clearedat ? new Date(a.clearedat) : null;
+                            const clearedAt = a.clearedAt ? new Date(a.clearedAt) : null;
                             html += `
                                 <div class="alarm-item cleared">
                                     <span>✅ ${a.message}</span>
@@ -729,8 +791,7 @@
                     }
                 }
             } catch (error) {
-                // Senyap – tak papar error
-                console.warn('Alarm fetch failed (CORS or network):', error);
+                console.warn('Alarm fetch failed:', error);
             }
         }
 
@@ -754,11 +815,11 @@
         }
 
         // =====================================================
-        // FETCH DATA DARI SHEET
+        // FETCH SENSOR DATA
         // =====================================================
         async function fetchData() {
             try {
-                const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${SHEET_NAME}`;
+                const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${SENSOR_SHEET_NAME}`;
                 const response = await fetch(url);
                 const text = await response.text();
 
@@ -908,7 +969,6 @@
                 const exhaust = latest[`${prefix}_exhaust`] || 0;
                 const error = latest[`${prefix}_error`] || 0;
 
-                // Notifications
                 if (water === 0 && !lastAlarmState[prefix]) {
                     sendNotification(`🔴 Alarm Zone ${idx}`, 'Water level empty!');
                     lastAlarmState[prefix] = true;
@@ -1022,7 +1082,7 @@
         }
 
         // =====================================================
-        // UPDATE CHART (guna zoneLabels global)
+        // UPDATE CHART
         // =====================================================
         function updateChart(data, param) {
             const chartData = data.slice(-30);
@@ -1038,7 +1098,7 @@
             });
 
             const datasets = config.keys.map((key, index) => ({
-                label: zoneLabels[index],  // GUNA GLOBAL
+                label: zoneLabels[index],
                 data: chartData.map(d => {
                     const val = d[key] || 0;
                     if (key.includes('co2')) return Math.min(Math.max(val, 300), 5000);
@@ -1208,7 +1268,7 @@
         connectMQTT();
         loadConfig();
         fetchData();
-        fetchAlarms(); // initial load
+        fetchAlarms();
         updateInterval = setInterval(() => {
             fetchData();
             fetchAlarms();
