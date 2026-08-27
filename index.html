@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🍄 Smart Multi-Zone Mushroom System</title>
     <style>
+        /* (sama macam sebelumnya, saya ringkaskan untuk menjimatkan ruang) */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -202,7 +203,6 @@
         .status.misting { color: #3498db; }
         .status.alarm { color: #e74c3c; animation: blink 1s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-
         .manual-control {
             margin-top: 12px;
             padding-top: 12px;
@@ -233,7 +233,6 @@
         .manual-control .btn-group .btn-on:hover { background: #27ae60; }
         .manual-control .btn-group .btn-off { background: #e74c3c; color: #fff; }
         .manual-control .btn-group .btn-off:hover { background: #c0392b; }
-
         .sustainability-section {
             background: rgba(255,255,255,0.03);
             border-radius: 12px;
@@ -279,7 +278,6 @@
             border-top: 1px solid rgba(255,255,255,0.05);
         }
         .sustainability-note .highlight { color: #f39c12; }
-
         .chart-container {
             background: rgba(255,255,255,0.03);
             border-radius: 12px;
@@ -312,7 +310,6 @@
         .chart-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
         .chart-btn.active { background: rgba(255,255,255,0.12); color: #fff; border-color: rgba(255,255,255,0.2); }
         #sensorChart { width: 100% !important; height: 320px !important; }
-
         .alarms-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -346,7 +343,6 @@
         .alarm-item .time { color: #555; font-size: 0.65rem; }
         .alarm-item .zone-tag { font-size: 0.55rem; padding: 1px 8px; border-radius: 10px; background: rgba(255,255,255,0.05); }
         .empty-state { text-align: center; color: #555; padding: 20px; font-size: 0.8rem; }
-
         .config-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -407,7 +403,6 @@
         .config-btn.load { background: rgba(52,152,219,0.2); color: #3498db; border: 1px solid rgba(52,152,219,0.2); }
         .config-btn.load:hover { background: rgba(52,152,219,0.3); }
         #configStatus { text-align: center; font-size: 0.75rem; margin-top: 10px; color: #2ecc71; }
-
         .loading { text-align: center; padding: 80px 0; }
         .spinner {
             display: inline-block;
@@ -434,7 +429,6 @@
         }
         .refresh-btn:hover { transform: scale(1.05); box-shadow: 0 5px 20px rgba(245, 87, 108, 0.3); }
         .auto-refresh { text-align: center; color: #444; font-size: 0.6rem; margin-top: 5px; }
-
         @media (max-width: 768px) {
             .rack-grid { grid-template-columns: 1fr; }
             .alarms-grid { grid-template-columns: 1fr; }
@@ -683,7 +677,7 @@
         }
 
         // =====================================================
-        // FETCH ALARMS (dengan CORS dan fallback)
+        // FETCH ALARMS (SENYAP JIKA GAGAL)
         // =====================================================
         async function fetchAlarms() {
             try {
@@ -735,7 +729,7 @@
                     }
                 }
             } catch (error) {
-                // Jika gagal (CORS etc.), kita biarkan sahaja – tak papar error kepada user
+                // Senyap – tak papar error
                 console.warn('Alarm fetch failed (CORS or network):', error);
             }
         }
