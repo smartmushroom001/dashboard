@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🍄 Smart Multi-Zone Mushroom System</title>
     <style>
-        /* Sama seperti sebelumnya, tidak perlu ubah */
+        /* ... sama seperti sebelumnya, tidak diubah ... */
+        /* (saya sertakan semula style yang sama untuk lengkap) */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -142,9 +143,9 @@
             font-weight: bold;
             text-transform: uppercase;
         }
-        .badge-top { background: #2ecc71; color: #000; }      /* Top */
-        .badge-middle { background: #3498db; color: #fff; }   /* Middle */
-        .badge-bottom { background: #9b59b6; color: #fff; }   /* Bottom */
+        .badge-top { background: #2ecc71; color: #000; }
+        .badge-middle { background: #3498db; color: #fff; }
+        .badge-bottom { background: #9b59b6; color: #fff; }
         .sensor-grid {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
@@ -621,6 +622,9 @@
             exhaust: { title: '📊 Exhaust Active Status', yLabel: 'Exhaust (0/1)', keys: ['z1_exhaust', 'z2_exhaust', 'z3_exhaust'], colors: ['#9b59b6', '#8e44ad', '#6c3483'] }
         };
 
+        const zoneLabels = ['Zone 1', 'Zone 2', 'Zone 3'];
+        const zoneColors = ['#2ecc71', '#3498db', '#9b59b6'];
+
         // Physical positions: 0=Top, 1=Middle, 2=Bottom
         const zonePositions = ['Top', 'Middle', 'Bottom'];
         const zoneBadges = ['badge-top', 'badge-middle', 'badge-bottom'];
@@ -679,16 +683,24 @@
             }
         }
 
-        // ===== FETCH ALARMS =====
+        // ===== FETCH ALARMS (dengan CORS) =====
         async function fetchAlarms() {
             try {
-                const response = await fetch(`${APPS_SCRIPT_URL}?action=alarms&limit=50`);
+                const response = await fetch(`${APPS_SCRIPT_URL}?action=alarms&limit=50`, {
+                    mode: 'cors', // CORS enabled
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}`);
+                }
                 const alarms = await response.json();
                 if (Array.isArray(alarms)) {
                     const active = alarms.filter(a => a.status === 'ACTIVE');
                     const cleared = alarms.filter(a => a.status === 'CLEARED');
 
-                    // Update alarm lists
+                    // Update active alarms
                     if (active.length === 0) {
                         document.getElementById('activeAlarms').innerHTML = '<div class="empty-state">No active alarms</div>';
                     } else {
@@ -706,6 +718,7 @@
                         document.getElementById('activeAlarms').innerHTML = html;
                     }
 
+                    // Update cleared alarms
                     if (cleared.length === 0) {
                         document.getElementById('clearedAlarms').innerHTML = '<div class="empty-state">No cleared alarms</div>';
                     } else {
@@ -726,6 +739,7 @@
                 }
             } catch (error) {
                 console.error('Error fetching alarms:', error);
+                // Don't show error to user, just keep existing state
             }
         }
 
