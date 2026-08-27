@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🍄 Smart Multi-Zone Mushroom System</title>
     <style>
-        /* ... sama seperti sebelumnya, tidak diubah ... */
-        /* (saya sertakan semula style yang sama untuk lengkap) */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -205,7 +203,6 @@
         .status.alarm { color: #e74c3c; animation: blink 1s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
-        /* ===== MANUAL CONTROL ===== */
         .manual-control {
             margin-top: 12px;
             padding-top: 12px;
@@ -237,7 +234,6 @@
         .manual-control .btn-group .btn-off { background: #e74c3c; color: #fff; }
         .manual-control .btn-group .btn-off:hover { background: #c0392b; }
 
-        /* ===== SUSTAINABILITY ===== */
         .sustainability-section {
             background: rgba(255,255,255,0.03);
             border-radius: 12px;
@@ -284,7 +280,6 @@
         }
         .sustainability-note .highlight { color: #f39c12; }
 
-        /* ===== CHARTS ===== */
         .chart-container {
             background: rgba(255,255,255,0.03);
             border-radius: 12px;
@@ -318,7 +313,6 @@
         .chart-btn.active { background: rgba(255,255,255,0.12); color: #fff; border-color: rgba(255,255,255,0.2); }
         #sensorChart { width: 100% !important; height: 320px !important; }
 
-        /* ===== ALARMS ===== */
         .alarms-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -353,7 +347,6 @@
         .alarm-item .zone-tag { font-size: 0.55rem; padding: 1px 8px; border-radius: 10px; background: rgba(255,255,255,0.05); }
         .empty-state { text-align: center; color: #555; padding: 20px; font-size: 0.8rem; }
 
-        /* ===== CONFIG ===== */
         .config-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -415,7 +408,6 @@
         .config-btn.load:hover { background: rgba(52,152,219,0.3); }
         #configStatus { text-align: center; font-size: 0.75rem; margin-top: 10px; color: #2ecc71; }
 
-        /* ===== LOADING ===== */
         .loading { text-align: center; padding: 80px 0; }
         .spinner {
             display: inline-block;
@@ -580,12 +572,17 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <script>
-        // ===== CONFIGURATION =====
+        // =====================================================
+        // KONFIGURASI
+        // =====================================================
         const SHEET_ID = '1zUDsxfZpBhXHpHFT_62ykMpH1wp9W69gH6lgMdD1ris';
         const SHEET_NAME = 'SensorData';
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbymCE9xnG42hiZa6UfqNzyy1FQcz2zPEl5EK_3LuWFRkxHSkWRNNyPowtnsUtotmRHZfg/exec';
         const MQTT_BROKER = 'wss://broker.emqx.io:8084/mqtt';
 
+        // =====================================================
+        // GLOBAL VARIABLES
+        // =====================================================
         let chart = null;
         let updateInterval = null;
         let allData = [];
@@ -595,13 +592,13 @@
         let lastAlarmState = { z1: false, z2: false, z3: false };
         let lastMistState = { z1: false, z2: false, z3: false };
         let lastExhaustState = { z1: false, z2: false, z3: false };
-
-        // Sustainability accumulators
         let cumulativeWaterUsed = 0;
         let cumulativeEnergyUsed = 0;
         let lastDataLength = 0;
 
-        // ===== DATE FORMATTER =====
+        // =====================================================
+        // DATE FORMATTER
+        // =====================================================
         const dateFormatter = new Intl.DateTimeFormat('en-MY', {
             timeZone: 'Asia/Kuala_Lumpur',
             day: '2-digit',
@@ -613,7 +610,9 @@
             hour12: true
         });
 
-        // ===== CHART CONFIGS =====
+        // =====================================================
+        // CHART CONFIGS & LABELS (GLOBAL)
+        // =====================================================
         const chartConfigs = {
             temp: { title: '📊 Temperature Trends (°C)', yLabel: 'Temperature (°C)', keys: ['z1_temp', 'z2_temp', 'z3_temp'], colors: ['#e74c3c', '#c0392b', '#e67e22'] },
             hum: { title: '📊 Humidity Trends (%)', yLabel: 'Humidity (%)', keys: ['z1_hum', 'z2_hum', 'z3_hum'], colors: ['#2ecc71', '#27ae60', '#1abc9c'] },
@@ -622,14 +621,15 @@
             exhaust: { title: '📊 Exhaust Active Status', yLabel: 'Exhaust (0/1)', keys: ['z1_exhaust', 'z2_exhaust', 'z3_exhaust'], colors: ['#9b59b6', '#8e44ad', '#6c3483'] }
         };
 
+        // INI YANG PENTING – mesti wujud untuk digunakan dalam updateChart
         const zoneLabels = ['Zone 1', 'Zone 2', 'Zone 3'];
         const zoneColors = ['#2ecc71', '#3498db', '#9b59b6'];
-
-        // Physical positions: 0=Top, 1=Middle, 2=Bottom
         const zonePositions = ['Top', 'Middle', 'Bottom'];
         const zoneBadges = ['badge-top', 'badge-middle', 'badge-bottom'];
 
-        // ===== MQTT CONNECTION =====
+        // =====================================================
+        // MQTT
+        // =====================================================
         function connectMQTT() {
             try {
                 mqttClient = mqtt.connect(MQTT_BROKER);
@@ -666,12 +666,11 @@
             console.log(`Sent ${state} to ${topic}`);
         }
 
-        // ===== BROWSER NOTIFICATION =====
+        // =====================================================
+        // NOTIFICATION
+        // =====================================================
         function sendNotification(title, body, icon = '🍄') {
-            if (!('Notification' in window)) {
-                console.log('Notifications not supported');
-                return;
-            }
+            if (!('Notification' in window)) return;
             if (Notification.permission === 'granted') {
                 new Notification(`🍄 ${title}`, { body, icon });
             } else if (Notification.permission !== 'denied') {
@@ -683,24 +682,22 @@
             }
         }
 
-        // ===== FETCH ALARMS (dengan CORS) =====
+        // =====================================================
+        // FETCH ALARMS (dengan CORS dan fallback)
+        // =====================================================
         async function fetchAlarms() {
             try {
                 const response = await fetch(`${APPS_SCRIPT_URL}?action=alarms&limit=50`, {
-                    mode: 'cors', // CORS enabled
-                    headers: {
-                        'Accept': 'application/json'
-                    }
+                    mode: 'cors',
+                    headers: { 'Accept': 'application/json' }
                 });
-                if (!response.ok) {
-                    throw new Error(`HTTP error ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
                 const alarms = await response.json();
                 if (Array.isArray(alarms)) {
                     const active = alarms.filter(a => a.status === 'ACTIVE');
                     const cleared = alarms.filter(a => a.status === 'CLEARED');
 
-                    // Update active alarms
+                    // Active alarms
                     if (active.length === 0) {
                         document.getElementById('activeAlarms').innerHTML = '<div class="empty-state">No active alarms</div>';
                     } else {
@@ -718,7 +715,7 @@
                         document.getElementById('activeAlarms').innerHTML = html;
                     }
 
-                    // Update cleared alarms
+                    // Cleared alarms
                     if (cleared.length === 0) {
                         document.getElementById('clearedAlarms').innerHTML = '<div class="empty-state">No cleared alarms</div>';
                     } else {
@@ -738,12 +735,14 @@
                     }
                 }
             } catch (error) {
-                console.error('Error fetching alarms:', error);
-                // Don't show error to user, just keep existing state
+                // Jika gagal (CORS etc.), kita biarkan sahaja – tak papar error kepada user
+                console.warn('Alarm fetch failed (CORS or network):', error);
             }
         }
 
-        // ===== NAVIGATION =====
+        // =====================================================
+        // NAVIGATION
+        // =====================================================
         function showSection(sectionId) {
             document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
             const target = document.getElementById(`section-${sectionId}`);
@@ -760,7 +759,9 @@
             }
         }
 
-        // ===== FETCH DATA =====
+        // =====================================================
+        // FETCH DATA DARI SHEET
+        // =====================================================
         async function fetchData() {
             try {
                 const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${SHEET_NAME}`;
@@ -791,7 +792,9 @@
             }
         }
 
-        // ===== PARSE GViz =====
+        // =====================================================
+        // PARSE GVIZ
+        // =====================================================
         function parseGVizData(data) {
             const rows = data.table.rows;
             const parsedData = [];
@@ -813,7 +816,6 @@
                     }
                 }
 
-                // Clamp CO2 values
                 const clampCo2 = (val) => Math.min(Math.max(val, 300), 5000);
 
                 parsedData.push({
@@ -837,7 +839,9 @@
             return parsedData;
         }
 
-        // ===== CALCULATE SUSTAINABILITY =====
+        // =====================================================
+        // SUSTAINABILITY
+        // =====================================================
         function calculateSustainability(data) {
             const waterFlowRate = parseFloat(document.getElementById('waterFlowRate')?.value) || 2.5;
             const fanPower = parseFloat(document.getElementById('fanPower')?.value) || 15;
@@ -889,7 +893,9 @@
             document.getElementById('sustainabilityGrid').innerHTML = html;
         }
 
-        // ===== UPDATE DASHBOARD =====
+        // =====================================================
+        // UPDATE DASHBOARD
+        // =====================================================
         function updateDashboard(data) {
             const latest = data[data.length - 1];
 
@@ -903,12 +909,12 @@
                 const temp = latest[`${prefix}_temp`] || 0;
                 const hum = latest[`${prefix}_hum`] || 0;
                 const co2 = latest[`${prefix}_co2`] || 0;
-                const water = latest[`${prefix}_water`] || 0; // 1 = water present, 0 = empty
+                const water = latest[`${prefix}_water`] || 0;
                 const mist = latest[`${prefix}_mist`] || 0;
                 const exhaust = latest[`${prefix}_exhaust`] || 0;
                 const error = latest[`${prefix}_error`] || 0;
 
-                // Alarm detection for notification
+                // Notifications
                 if (water === 0 && !lastAlarmState[prefix]) {
                     sendNotification(`🔴 Alarm Zone ${idx}`, 'Water level empty!');
                     lastAlarmState[prefix] = true;
@@ -916,8 +922,6 @@
                     sendNotification(`✅ Alarm Cleared Zone ${idx}`, 'Water level restored');
                     lastAlarmState[prefix] = false;
                 }
-
-                // Mist state change notification
                 if (mist && !lastMistState[prefix]) {
                     sendNotification(`🌫️ Mist ON Zone ${idx}`, 'Misting started');
                     lastMistState[prefix] = true;
@@ -925,8 +929,6 @@
                     sendNotification(`⭕ Mist OFF Zone ${idx}`, 'Misting stopped');
                     lastMistState[prefix] = false;
                 }
-
-                // Exhaust state change notification
                 if (exhaust && !lastExhaustState[prefix]) {
                     sendNotification(`💨 Exhaust ON Zone ${idx}`, 'Exhaust fan started');
                     lastExhaustState[prefix] = true;
@@ -944,10 +946,8 @@
                 const waterStatus = water === 1 ? 'good' : 'danger';
                 const waterText = water === 1 ? 'Present' : 'Empty';
                 const waterIcon = water === 1 ? '✅' : '❌';
-
                 const displayCo2 = co2 > 5000 ? '>5000' : co2.toFixed(0);
 
-                // Positions: 0=Top, 1=Middle, 2=Bottom
                 const position = zonePositions[i];
                 const badge = zoneBadges[i];
 
@@ -1027,7 +1027,9 @@
             updateChart(data, currentParam);
         }
 
-        // ===== UPDATE CHART =====
+        // =====================================================
+        // UPDATE CHART (guna zoneLabels global)
+        // =====================================================
         function updateChart(data, param) {
             const chartData = data.slice(-30);
             const config = chartConfigs[param];
@@ -1042,7 +1044,7 @@
             });
 
             const datasets = config.keys.map((key, index) => ({
-                label: zoneLabels[index],
+                label: zoneLabels[index],  // GUNA GLOBAL
                 data: chartData.map(d => {
                     const val = d[key] || 0;
                     if (key.includes('co2')) return Math.min(Math.max(val, 300), 5000);
@@ -1092,7 +1094,9 @@
             if (allData.length > 0) updateChart(allData, param);
         }
 
-        // ===== CONFIGURATION =====
+        // =====================================================
+        // CONFIGURATION FUNCTIONS
+        // =====================================================
         function saveConfig() {
             const config = {
                 type: 'config',
@@ -1204,7 +1208,9 @@
             }
         }
 
-        // ===== INITIALIZE =====
+        // =====================================================
+        // INIT
+        // =====================================================
         connectMQTT();
         loadConfig();
         fetchData();
