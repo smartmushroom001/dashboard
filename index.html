@@ -111,7 +111,7 @@
         }
         .rack-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
             gap: 20px;
         }
         .level-card {
@@ -203,6 +203,41 @@
         .status.alarm { color: #e74c3c; animation: blink 1s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
+        /* ===== MANUAL CONTROL ===== */
+        .manual-control {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        .manual-control .label {
+            font-size: 0.55rem;
+            text-transform: uppercase;
+            color: #666;
+            margin-bottom: 6px;
+            display: block;
+        }
+        .manual-control .btn-group {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+        .manual-control .btn-group button {
+            padding: 4px 10px;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.6rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .manual-control .btn-group .btn-on { background: #2ecc71; color: #000; }
+        .manual-control .btn-group .btn-on:hover { background: #27ae60; }
+        .manual-control .btn-group .btn-off { background: #e74c3c; color: #fff; }
+        .manual-control .btn-group .btn-off:hover { background: #c0392b; }
+        .manual-control .btn-group .btn-mqtt { background: #3498db; color: #fff; font-size: 0.5rem; padding: 2px 6px; border-radius: 3px; }
+        .manual-control .btn-group .btn-mqtt.connected { background: #2ecc71; }
+        .manual-control .btn-group .btn-mqtt.disconnected { background: #e74c3c; }
+
         /* ===== SUSTAINABILITY ===== */
         .sustainability-section {
             background: rgba(255,255,255,0.03);
@@ -240,7 +275,6 @@
         .sustainability-card .value.blue { color: #3498db; }
         .sustainability-card .value.orange { color: #f39c12; }
         .sustainability-card .value.purple { color: #9b59b6; }
-        .sustainability-card .value.red { color: #e74c3c; }
         .sustainability-note {
             text-align: center;
             color: #555;
@@ -249,9 +283,7 @@
             padding-top: 15px;
             border-top: 1px solid rgba(255,255,255,0.05);
         }
-        .sustainability-note .highlight {
-            color: #f39c12;
-        }
+        .sustainability-note .highlight { color: #f39c12; }
 
         /* ===== CHARTS ===== */
         .chart-container {
@@ -365,6 +397,7 @@
             gap: 10px;
             margin-top: 15px;
             justify-content: center;
+            flex-wrap: wrap;
         }
         .config-btn {
             padding: 8px 25px;
@@ -379,6 +412,8 @@
         .config-btn.save:hover { transform: scale(1.05); box-shadow: 0 5px 20px rgba(245, 87, 108, 0.3); }
         .config-btn.reset { background: rgba(255,255,255,0.05); color: #888; border: 1px solid rgba(255,255,255,0.08); }
         .config-btn.reset:hover { background: rgba(255,255,255,0.1); }
+        .config-btn.load { background: rgba(52,152,219,0.2); color: #3498db; border: 1px solid rgba(52,152,219,0.2); }
+        .config-btn.load:hover { background: rgba(52,152,219,0.3); }
         #configStatus { text-align: center; font-size: 0.75rem; margin-top: 10px; color: #2ecc71; }
 
         /* ===== LOADING ===== */
@@ -421,6 +456,7 @@
         @media (max-width: 480px) {
             .sensor-grid { grid-template-columns: 1fr 1fr; }
             .nav-btn { padding: 4px 10px; font-size: 0.6rem; }
+            .manual-control .btn-group button { font-size: 0.5rem; padding: 3px 6px; }
         }
     </style>
 </head>
@@ -428,7 +464,7 @@
     <div class="container">
         <div class="header">
             <h1>🍄 Smart Multi-Zone Mushroom System</h1>
-            <p class="subtitle">Real-time Monitoring • 3 Zones • CO₂ • Temperature • Humidity • Sustainability</p>
+            <p class="subtitle">3 Zones • CO₂ • Temperature • Humidity • Sustainability • MQTT Control</p>
         </div>
 
         <div id="loading" class="loading">
@@ -447,6 +483,7 @@
                 <div class="status-item"><span id="rowCount">Records: 0</span></div>
                 <div class="status-item"><span id="alarmCount">🔔 Alarms: 0</span></div>
                 <div class="status-item"><span id="zoneStatus">🌫️ Mist: 0/3</span></div>
+                <div class="status-item"><span id="mqttStatus">📡 MQTT: Disconnected</span></div>
             </div>
 
             <!-- Navigation -->
@@ -468,9 +505,7 @@
             <div id="section-sustainability" class="section">
                 <div class="section-title">🌱 Sustainability Tracking <span class="badge">Calculated Metrics</span></div>
                 <div class="sustainability-section">
-                    <div class="sustainability-grid" id="sustainabilityGrid">
-                        <!-- Filled by JavaScript -->
-                    </div>
+                    <div class="sustainability-grid" id="sustainabilityGrid"></div>
                     <div class="sustainability-note">
                         💡 Sustainability metrics are <span class="highlight">calculated/simulated</span> based on mist and fan runtime.
                         <br>🔹 Water Flow Rate: <span class="highlight">2.5 mL/s</span> | 🔹 Fan Power: <span class="highlight">15W</span>
@@ -504,39 +539,39 @@
                 </div>
             </div>
 
-<!-- ===== SECTION 5: CONFIGURATION ===== -->
-<div id="section-config" class="section">
-    <div class="section-title">⚙️ Configuration <span class="badge">System Parameters</span></div>
-    <div class="config-grid">
-        <div class="config-group">
-            <h4>🌫️ Mist Control</h4>
-            <div class="config-item"><label>Target Humidity</label><div><input type="number" id="targetHumidity" value="85" min="60" max="95"><span class="unit">%</span></div></div>
-            <div class="config-item"><label>Humidity Tolerance</label><div><input type="number" id="humidityTolerance" value="3" min="1" max="10"><span class="unit">%</span></div></div>
-            <div class="config-item"><label>Mist ON Duration</label><div><input type="number" id="mistPulseOn" value="3000" min="1000" max="10000"><span class="unit">ms</span></div></div>
-            <div class="config-item"><label>Mist OFF Duration</label><div><input type="number" id="mistPulseOff" value="5000" min="1000" max="20000"><span class="unit">ms</span></div></div>
-            <div class="config-item"><label>Max Mist Duration</label><div><input type="number" id="mistMaxDuration" value="30000" min="5000" max="60000"><span class="unit">ms</span></div></div>
-        </div>
-        <div class="config-group">
-            <h4>🌫️ Environmental</h4>
-            <div class="config-item"><label>CO₂ Threshold</label><div><input type="number" id="co2Threshold" value="800" min="400" max="2000"><span class="unit">ppm</span></div></div>
-            <div class="config-item"><label>Fan ON Temp</label><div><input type="number" id="tempFanOn" value="30" min="20" max="40"><span class="unit">°C</span></div></div>
-            <div class="config-item"><label>Fan OFF Temp</label><div><input type="number" id="tempFanOff" value="28" min="18" max="38"><span class="unit">°C</span></div></div>
-            <div class="config-item"><label>MQ135 R0</label><div><input type="number" id="mq135_r0" value="15" min="5" max="30" step="0.5"><span class="unit">kΩ</span></div></div>
-        </div>
-        <div class="config-group">
-            <h4>🌱 Sustainability</h4>
-            <div class="config-item"><label>Water Flow Rate</label><div><input type="number" id="waterFlowRate" value="2.5" min="0.5" max="10" step="0.1"><span class="unit">mL/s</span></div></div>
-            <div class="config-item"><label>Fan Power</label><div><input type="number" id="fanPower" value="15" min="5" max="50"><span class="unit">W</span></div></div>
-            <div class="config-item"><label>Yield (kg)</label><div><input type="number" id="yieldKg" value="0" min="0" max="100" step="0.1"><span class="unit">kg</span></div></div>
-        </div>
-    </div>
-    <div class="config-actions">
-        <button class="config-btn save" onclick="saveConfig()">💾 Save Configuration</button>
-        <button class="config-btn reset" onclick="resetConfig()">↩️ Reset to Default</button>
-        <button class="config-btn" style="background:rgba(255,255,255,0.05);color:#888;border:1px solid rgba(255,255,255,0.08);" onclick="loadConfigFromSheet()">📥 Load from Sheet</button>
-    </div>
-    <div id="configStatus"></div>
-</div>
+            <!-- ===== SECTION 5: CONFIGURATION ===== -->
+            <div id="section-config" class="section">
+                <div class="section-title">⚙️ Configuration <span class="badge">System Parameters</span></div>
+                <div class="config-grid">
+                    <div class="config-group">
+                        <h4>🌫️ Mist Control</h4>
+                        <div class="config-item"><label>Target Humidity</label><div><input type="number" id="targetHumidity" value="85" min="60" max="95"><span class="unit">%</span></div></div>
+                        <div class="config-item"><label>Humidity Tolerance</label><div><input type="number" id="humidityTolerance" value="3" min="1" max="10"><span class="unit">%</span></div></div>
+                        <div class="config-item"><label>Mist ON Duration</label><div><input type="number" id="mistPulseOn" value="3000" min="1000" max="10000"><span class="unit">ms</span></div></div>
+                        <div class="config-item"><label>Mist OFF Duration</label><div><input type="number" id="mistPulseOff" value="5000" min="1000" max="20000"><span class="unit">ms</span></div></div>
+                        <div class="config-item"><label>Max Mist Duration</label><div><input type="number" id="mistMaxDuration" value="30000" min="5000" max="60000"><span class="unit">ms</span></div></div>
+                    </div>
+                    <div class="config-group">
+                        <h4>🌫️ Environmental</h4>
+                        <div class="config-item"><label>CO₂ Threshold</label><div><input type="number" id="co2Threshold" value="800" min="400" max="2000"><span class="unit">ppm</span></div></div>
+                        <div class="config-item"><label>Fan ON Temp</label><div><input type="number" id="tempFanOn" value="30" min="20" max="40"><span class="unit">°C</span></div></div>
+                        <div class="config-item"><label>Fan OFF Temp</label><div><input type="number" id="tempFanOff" value="28" min="18" max="38"><span class="unit">°C</span></div></div>
+                        <div class="config-item"><label>MQ135 R0</label><div><input type="number" id="mq135_r0" value="15" min="5" max="30" step="0.5"><span class="unit">kΩ</span></div></div>
+                    </div>
+                    <div class="config-group">
+                        <h4>🌱 Sustainability</h4>
+                        <div class="config-item"><label>Water Flow Rate</label><div><input type="number" id="waterFlowRate" value="2.5" min="0.5" max="10" step="0.1"><span class="unit">mL/s</span></div></div>
+                        <div class="config-item"><label>Fan Power</label><div><input type="number" id="fanPower" value="15" min="5" max="50"><span class="unit">W</span></div></div>
+                        <div class="config-item"><label>Yield (kg)</label><div><input type="number" id="yieldKg" value="0" min="0" max="100" step="0.1"><span class="unit">kg</span></div></div>
+                    </div>
+                </div>
+                <div class="config-actions">
+                    <button class="config-btn save" onclick="saveConfig()">💾 Save Configuration</button>
+                    <button class="config-btn reset" onclick="resetConfig()">↩️ Reset to Default</button>
+                    <button class="config-btn load" onclick="loadConfigFromSheet()">📥 Load from Sheet</button>
+                </div>
+                <div id="configStatus"></div>
+            </div>
 
             <button class="refresh-btn" onclick="fetchData()">🔄 Refresh Data</button>
             <div class="auto-refresh">Auto-refresh every 10 seconds</div>
@@ -544,18 +579,22 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <script>
         // ===== CONFIGURATION =====
         const SHEET_ID = '1zUDsxfZpBhXHpHFT_62ykMpH1wp9W69gH6lgMdD1ris';
         const SHEET_NAME = 'SensorData';
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbymCE9xnG42hiZa6UfqNzyy1FQcz2zPEl5EK_3LuWFRkxHSkWRNNyPowtnsUtotmRHZfg/exec';
+        const MQTT_BROKER = 'wss://broker.emqx.io:8084/mqtt';
 
         let chart = null;
         let updateInterval = null;
         let allData = [];
         let currentParam = 'temp';
+        let mqttClient = null;
+        let mqttConnected = false;
 
-        // Sustainability accumulators (persistent across updates)
+        // Sustainability accumulators
         let cumulativeWaterUsed = 0;
         let cumulativeEnergyUsed = 0;
         let lastDataLength = 0;
@@ -583,6 +622,43 @@
 
         const zoneLabels = ['Zone 1', 'Zone 2', 'Zone 3'];
         const zoneColors = ['#2ecc71', '#3498db', '#9b59b6'];
+
+        // ===== MQTT CONNECTION =====
+        function connectMQTT() {
+            try {
+                mqttClient = mqtt.connect(MQTT_BROKER);
+                mqttClient.on('connect', () => {
+                    console.log('MQTT connected');
+                    mqttConnected = true;
+                    document.getElementById('mqttStatus').textContent = '📡 MQTT: Connected';
+                    document.getElementById('mqttStatus').style.color = '#2ecc71';
+                });
+                mqttClient.on('error', (err) => {
+                    console.error('MQTT error:', err);
+                    mqttConnected = false;
+                    document.getElementById('mqttStatus').textContent = '📡 MQTT: Error';
+                    document.getElementById('mqttStatus').style.color = '#e74c3c';
+                });
+                mqttClient.on('close', () => {
+                    console.log('MQTT disconnected');
+                    mqttConnected = false;
+                    document.getElementById('mqttStatus').textContent = '📡 MQTT: Disconnected';
+                    document.getElementById('mqttStatus').style.color = '#888';
+                });
+            } catch (e) {
+                console.error('MQTT init error:', e);
+            }
+        }
+
+        function sendMQTT(zone, device, state) {
+            if (!mqttConnected || !mqttClient) {
+                alert('MQTT not connected. Please wait or refresh.');
+                return;
+            }
+            const topic = `mushroom/zone${zone}/${device}/set`;
+            mqttClient.publish(topic, state);
+            console.log(`Sent ${state} to ${topic}`);
+        }
 
         // ===== NAVIGATION =====
         function showSection(sectionId) {
@@ -613,9 +689,7 @@
                 if (data && data.table && data.table.rows && data.table.rows.length > 1) {
                     const parsedData = parseGVizData(data);
                     if (parsedData.length > 0) {
-                        // Check if new data added
                         if (parsedData.length > lastDataLength) {
-                            // Calculate sustainability for new data
                             calculateSustainability(parsedData);
                             lastDataLength = parsedData.length;
                         }
@@ -653,15 +727,17 @@
                     }
                 }
 
+                // Clamp CO2 values
+                const clampCo2 = (val) => Math.min(Math.max(val, 300), 5000);
+
                 parsedData.push({
                     timestamp: timestamp,
-                    z1_temp: getVal(1), z1_hum: getVal(2), z1_co2: getVal(3),
+                    z1_temp: getVal(1), z1_hum: getVal(2), z1_co2: clampCo2(getVal(3)),
                     z1_water: getVal(4), z1_mist: getVal(5), z1_exhaust: getVal(6), z1_error: getVal(7),
-                    z2_temp: getVal(8), z2_hum: getVal(9), z2_co2: getVal(10),
+                    z2_temp: getVal(8), z2_hum: getVal(9), z2_co2: clampCo2(getVal(10)),
                     z2_water: getVal(11), z2_mist: getVal(12), z2_exhaust: getVal(13), z2_error: getVal(14),
-                    z3_temp: getVal(15), z3_hum: getVal(16), z3_co2: getVal(17),
+                    z3_temp: getVal(15), z3_hum: getVal(16), z3_co2: clampCo2(getVal(17)),
                     z3_water: getVal(18), z3_mist: getVal(19), z3_exhaust: getVal(20), z3_error: getVal(21),
-                    // Sustainability columns (if available from sheet)
                     water_used: getVal(22),
                     energy_used: getVal(23),
                     yield_kg: getVal(24),
@@ -677,17 +753,13 @@
 
         // ===== CALCULATE SUSTAINABILITY =====
         function calculateSustainability(data) {
-            // Get configuration values
-            const waterFlowRate = parseFloat(document.getElementById('waterFlowRate')?.value) || 2.5; // mL/s
-            const fanPower = parseFloat(document.getElementById('fanPower')?.value) || 15; // Watts
+            const waterFlowRate = parseFloat(document.getElementById('waterFlowRate')?.value) || 2.5;
+            const fanPower = parseFloat(document.getElementById('fanPower')?.value) || 15;
             const yieldKg = parseFloat(document.getElementById('yieldKg')?.value) || 0;
 
-            // Calculate total mist and fan runtime from the data
             let totalMistRuntime = 0;
             let totalFanRuntime = 0;
-
-            // We assume each reading represents a 10-second interval
-            const intervalSeconds = 10; // Each data point is ~10 seconds apart
+            const intervalSeconds = 10;
 
             for (let i = 0; i < data.length; i++) {
                 const mistCount = (data[i].z1_mist || 0) + (data[i].z2_mist || 0) + (data[i].z3_mist || 0);
@@ -696,34 +768,23 @@
                 totalFanRuntime += fanCount * intervalSeconds;
             }
 
-            // Calculate water usage (L)
-            const waterUsed = (totalMistRuntime * waterFlowRate) / 1000.0; // Convert mL to Liters
+            cumulativeWaterUsed = (totalMistRuntime * waterFlowRate) / 1000.0;
+            cumulativeEnergyUsed = (totalFanRuntime / 3600.0) * fanPower / 1000.0;
 
-            // Calculate energy usage (kWh)
-            const fanHours = totalFanRuntime / 3600.0; // Convert seconds to hours
-            const energyUsed = fanHours * fanPower / 1000.0; // Convert W to kW
+            const waterEff = yieldKg > 0 ? yieldKg / (cumulativeWaterUsed + 0.001) : 0;
+            const energyEff = yieldKg > 0 ? yieldKg / (cumulativeEnergyUsed + 0.001) : 0;
+            const specWater = yieldKg > 0 ? cumulativeWaterUsed / (yieldKg + 0.001) : 0;
+            const specEnergy = yieldKg > 0 ? cumulativeEnergyUsed / (yieldKg + 0.001) : 0;
 
-            // Calculate efficiency metrics
-            const waterEfficiency = yieldKg > 0 ? yieldKg / (waterUsed + 0.001) : 0;
-            const energyEfficiency = yieldKg > 0 ? yieldKg / (energyUsed + 0.001) : 0;
-            const specificWater = yieldKg > 0 ? waterUsed / (yieldKg + 0.001) : 0;
-            const specificEnergy = yieldKg > 0 ? energyUsed / (yieldKg + 0.001) : 0;
-
-            // Store cumulative values
-            cumulativeWaterUsed = waterUsed;
-            cumulativeEnergyUsed = energyUsed;
-
-            // Update the sustainability display
-            updateSustainabilityDisplay(waterUsed, energyUsed, yieldKg, waterEfficiency, energyEfficiency, specificWater, specificEnergy);
+            updateSustainabilityDisplay(cumulativeWaterUsed, cumulativeEnergyUsed, yieldKg, waterEff, energyEff, specWater, specEnergy);
         }
 
-        // ===== UPDATE SUSTAINABILITY DISPLAY =====
-        function updateSustainabilityDisplay(waterUsed, energyUsed, yieldKg, waterEfficiency, energyEfficiency, specificWater, specificEnergy) {
+        function updateSustainabilityDisplay(waterUsed, energyUsed, yieldKg, waterEff, energyEff, specWater, specEnergy) {
             const metrics = [
-                { label: 'Water Use Efficiency', value: waterEfficiency, unit: 'kg/L', color: 'green' },
-                { label: 'Energy Use Efficiency', value: energyEfficiency, unit: 'kg/kWh', color: 'blue' },
-                { label: 'Specific Water', value: specificWater, unit: 'L/kg', color: 'orange' },
-                { label: 'Specific Energy', value: specificEnergy, unit: 'kWh/kg', color: 'purple' },
+                { label: 'Water Use Efficiency', value: waterEff, unit: 'kg/L', color: 'green' },
+                { label: 'Energy Use Efficiency', value: energyEff, unit: 'kg/kWh', color: 'blue' },
+                { label: 'Specific Water', value: specWater, unit: 'L/kg', color: 'orange' },
+                { label: 'Specific Energy', value: specEnergy, unit: 'kWh/kg', color: 'purple' },
                 { label: 'Total Water Used', value: waterUsed, unit: 'L', color: 'blue' },
                 { label: 'Total Energy Used', value: energyUsed, unit: 'kWh', color: 'orange' },
                 { label: 'Yield', value: yieldKg, unit: 'kg', color: 'green' }
@@ -739,7 +800,6 @@
                     </div>
                 `;
             });
-
             document.getElementById('sustainabilityGrid').innerHTML = html;
         }
 
@@ -747,7 +807,6 @@
         function updateDashboard(data) {
             const latest = data[data.length - 1];
 
-            // Build zone cards
             let html = '';
             let alarmCount = 0;
             let mistCount = 0;
@@ -758,21 +817,27 @@
                 const temp = latest[`${prefix}_temp`] || 0;
                 const hum = latest[`${prefix}_hum`] || 0;
                 const co2 = latest[`${prefix}_co2`] || 0;
-                const water = latest[`${prefix}_water`] || 0;
+                const water = latest[`${prefix}_water`] || 0; // 1 = water present, 0 = empty
                 const mist = latest[`${prefix}_mist`] || 0;
                 const exhaust = latest[`${prefix}_exhaust`] || 0;
                 const error = latest[`${prefix}_error`] || 0;
 
+                // Water status: 1 = water present (OK), 0 = empty (Alarm)
                 if (water === 0) alarmCount++;
                 if (mist) mistCount++;
 
                 const tempStatus = temp > 30 ? 'danger' : temp > 28 ? 'warning' : 'good';
                 const humStatus = hum < 80 ? 'warning' : hum > 90 ? 'warning' : 'good';
                 const co2Status = co2 > 800 ? 'danger' : co2 > 600 ? 'warning' : 'good';
-                const waterStatus = water === 0 ? 'danger' : 'good';
+                // Water status: 1 = good (water present), 0 = danger (empty)
+                const waterStatus = water === 1 ? 'good' : 'danger';
+                const waterText = water === 1 ? 'Present' : 'Empty';
+                const waterIcon = water === 1 ? '✅' : '❌';
 
-                const badges = ['badge-top', 'badge-middle', 'badge-bottom'];
-                const positions = ['Top', 'Middle', 'Bottom'];
+                const displayCo2 = co2 > 5000 ? '>5000' : co2.toFixed(0);
+
+                const badges = ['badge-bottom', 'badge-middle', 'badge-top'];
+                const positions = ['Bottom', 'Middle', 'Top'];
 
                 html += `
                     <div class="level-card level-${idx}">
@@ -793,13 +858,13 @@
                             </div>
                             <div class="sensor-item">
                                 <div class="label">🌫️ CO₂</div>
-                                <div class="value co2 ${co2Status}">${co2.toFixed(0)}</div>
+                                <div class="value co2 ${co2Status}">${displayCo2}</div>
                                 <div class="unit">ppm</div>
                             </div>
                             <div class="sensor-item">
                                 <div class="label">💧 Water</div>
-                                <div class="value water ${waterStatus}">${water ? '✅' : '❌'}</div>
-                                <div class="unit">${water ? 'Present' : 'Empty'}</div>
+                                <div class="value water ${waterStatus}">${waterIcon}</div>
+                                <div class="unit">${waterText}</div>
                             </div>
                             <div class="sensor-item">
                                 <div class="label">🌫️ Mist</div>
@@ -826,6 +891,15 @@
                                 <span class="status ${water === 0 ? 'alarm' : 'off'}">${water ? '✅ OK' : '🔴 EMPTY'}</span>
                             </div>
                         </div>
+                        <div class="manual-control">
+                            <span class="label">📡 Manual Control (MQTT)</span>
+                            <div class="btn-group">
+                                <button class="btn-on" onclick="sendMQTT(${idx},'mist','ON')">Mist ON</button>
+                                <button class="btn-off" onclick="sendMQTT(${idx},'mist','OFF')">Mist OFF</button>
+                                <button class="btn-on" onclick="sendMQTT(${idx},'exhaust','ON')">Exhaust ON</button>
+                                <button class="btn-off" onclick="sendMQTT(${idx},'exhaust','OFF')">Exhaust OFF</button>
+                            </div>
+                        </div>
                     </div>
                 `;
             }
@@ -838,7 +912,6 @@
             document.getElementById('rowCount').textContent = `Records: ${data.length}`;
             document.getElementById('lastUpdate').textContent = `Last update: ${new Date().toLocaleString()}`;
 
-            // Update chart
             updateChart(data, currentParam);
         }
 
@@ -858,7 +931,12 @@
 
             const datasets = config.keys.map((key, index) => ({
                 label: zoneLabels[index],
-                data: chartData.map(d => d[key] || 0),
+                data: chartData.map(d => {
+                    const val = d[key] || 0;
+                    // Clamp CO2 for chart too
+                    if (key.includes('co2')) return Math.min(Math.max(val, 300), 5000);
+                    return val;
+                }),
                 borderColor: config.colors[index],
                 backgroundColor: config.colors[index] + '33',
                 borderWidth: 2,
@@ -903,142 +981,127 @@
             if (allData.length > 0) updateChart(allData, param);
         }
 
-// ===== LOAD CONFIG FROM GOOGLE SHEET =====
-async function loadConfigFromSheet() {
-    try {
-        const response = await fetch(`${APPS_SCRIPT_URL}?action=config`);
-        const config = await response.json();
-        
-        // Update UI fields
-        document.getElementById('targetHumidity').value = config.targetHumidity || 85;
-        document.getElementById('humidityTolerance').value = config.humidityTolerance || 3;
-        document.getElementById('mistPulseOn').value = config.mistPulseOn || 3000;
-        document.getElementById('mistPulseOff').value = config.mistPulseOff || 5000;
-        document.getElementById('mistMaxDuration').value = config.mistMaxDuration || 30000;
-        document.getElementById('co2Threshold').value = config.co2Threshold || 800;
-        document.getElementById('tempFanOn').value = config.tempFanOn || 30;
-        document.getElementById('tempFanOff').value = config.tempFanOff || 28;
-        document.getElementById('mq135_r0').value = config.mq135_r0 || 15;
-        document.getElementById('waterFlowRate').value = config.waterFlowRate || 2.5;
-        document.getElementById('fanPower').value = config.fanPower || 15;
-        document.getElementById('yieldKg').value = config.yieldKg || 0;
-        
-        // Save to localStorage
-        localStorage.setItem('mushroomConfig', JSON.stringify(config));
-        
-        const status = document.getElementById('configStatus');
-        status.textContent = '✅ Configuration loaded from sheet!';
-        status.style.color = '#2ecc71';
-        setTimeout(() => status.textContent = '', 3000);
-        
-        // Recalculate sustainability with new yield
-        if (allData.length > 0) {
-            calculateSustainability(allData);
-        }
-    } catch (error) {
-        console.error('Error loading config:', error);
-        const status = document.getElementById('configStatus');
-        status.textContent = '❌ Failed to load config from sheet';
-        status.style.color = '#e74c3c';
-    }
-}
+        // ===== CONFIGURATION =====
+        function saveConfig() {
+            const config = {
+                type: 'config',
+                targetHumidity: parseFloat(document.getElementById('targetHumidity').value),
+                humidityTolerance: parseFloat(document.getElementById('humidityTolerance').value),
+                mistPulseOn: parseInt(document.getElementById('mistPulseOn').value),
+                mistPulseOff: parseInt(document.getElementById('mistPulseOff').value),
+                mistMaxDuration: parseInt(document.getElementById('mistMaxDuration').value),
+                co2Threshold: parseInt(document.getElementById('co2Threshold').value),
+                tempFanOn: parseFloat(document.getElementById('tempFanOn').value),
+                tempFanOff: parseFloat(document.getElementById('tempFanOff').value),
+                mq135_r0: parseFloat(document.getElementById('mq135_r0').value),
+                waterFlowRate: parseFloat(document.getElementById('waterFlowRate').value),
+                fanPower: parseFloat(document.getElementById('fanPower').value),
+                yieldKg: parseFloat(document.getElementById('yieldKg').value)
+            };
 
-// ===== SAVE CONFIG (Updated) =====
-function saveConfig() {
-    const config = {
-        type: 'config',
-        targetHumidity: parseFloat(document.getElementById('targetHumidity').value),
-        humidityTolerance: parseFloat(document.getElementById('humidityTolerance').value),
-        mistPulseOn: parseInt(document.getElementById('mistPulseOn').value),
-        mistPulseOff: parseInt(document.getElementById('mistPulseOff').value),
-        mistMaxDuration: parseInt(document.getElementById('mistMaxDuration').value),
-        co2Threshold: parseInt(document.getElementById('co2Threshold').value),
-        tempFanOn: parseFloat(document.getElementById('tempFanOn').value),
-        tempFanOff: parseFloat(document.getElementById('tempFanOff').value),
-        mq135_r0: parseFloat(document.getElementById('mq135_r0').value),
-        waterFlowRate: parseFloat(document.getElementById('waterFlowRate').value),
-        fanPower: parseFloat(document.getElementById('fanPower').value),
-        yieldKg: parseFloat(document.getElementById('yieldKg').value)
-    };
+            localStorage.setItem('mushroomConfig', JSON.stringify(config));
 
-    // Save to localStorage
-    localStorage.setItem('mushroomConfig', JSON.stringify(config));
-
-    // Send to Google Sheets
-    fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config)
-    });
-
-    const status = document.getElementById('configStatus');
-    status.textContent = '✅ Configuration saved successfully!';
-    status.style.color = '#2ecc71';
-    setTimeout(() => status.textContent = '', 3000);
-
-    // Recalculate sustainability with new yield
-    if (allData.length > 0) {
-        calculateSustainability(allData);
-    }
-}
-
-// ===== RESET CONFIG (Updated) =====
-function resetConfig() {
-    const defaults = {
-        targetHumidity: 85,
-        humidityTolerance: 3,
-        mistPulseOn: 3000,
-        mistPulseOff: 5000,
-        mistMaxDuration: 30000,
-        co2Threshold: 800,
-        tempFanOn: 30,
-        tempFanOff: 28,
-        mq135_r0: 15,
-        waterFlowRate: 2.5,
-        fanPower: 15,
-        yieldKg: 0
-    };
-
-    Object.keys(defaults).forEach(key => {
-        const el = document.getElementById(key);
-        if (el) el.value = defaults[key];
-    });
-
-    localStorage.removeItem('mushroomConfig');
-    const status = document.getElementById('configStatus');
-    status.textContent = '↩️ Reset to default values';
-    status.style.color = '#f39c12';
-    setTimeout(() => status.textContent = '', 3000);
-
-    if (allData.length > 0) {
-        calculateSustainability(allData);
-    }
-}
-
-// ===== LOAD LOCAL CONFIG =====
-function loadConfig() {
-    const saved = localStorage.getItem('mushroomConfig');
-    if (saved) {
-        try {
-            const config = JSON.parse(saved);
-            Object.keys(config).forEach(key => {
-                const el = document.getElementById(key);
-                if (el) el.value = config[key];
+            fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
             });
-        } catch (e) {}
-    } else {
-        // Try loading from sheet if no local config
-        loadConfigFromSheet();
-    }
-}
+
+            const status = document.getElementById('configStatus');
+            status.textContent = '✅ Configuration saved successfully!';
+            status.style.color = '#2ecc71';
+            setTimeout(() => status.textContent = '', 3000);
+
+            if (allData.length > 0) calculateSustainability(allData);
+        }
+
+        function resetConfig() {
+            const defaults = {
+                targetHumidity: 85,
+                humidityTolerance: 3,
+                mistPulseOn: 3000,
+                mistPulseOff: 5000,
+                mistMaxDuration: 30000,
+                co2Threshold: 800,
+                tempFanOn: 30,
+                tempFanOff: 28,
+                mq135_r0: 15,
+                waterFlowRate: 2.5,
+                fanPower: 15,
+                yieldKg: 0
+            };
+
+            Object.keys(defaults).forEach(key => {
+                const el = document.getElementById(key);
+                if (el) el.value = defaults[key];
+            });
+
+            localStorage.removeItem('mushroomConfig');
+            const status = document.getElementById('configStatus');
+            status.textContent = '↩️ Reset to default values';
+            status.style.color = '#f39c12';
+            setTimeout(() => status.textContent = '', 3000);
+
+            if (allData.length > 0) calculateSustainability(allData);
+        }
+
+        async function loadConfigFromSheet() {
+            try {
+                const response = await fetch(`${APPS_SCRIPT_URL}?action=config`);
+                const config = await response.json();
+
+                document.getElementById('targetHumidity').value = config.targetHumidity || 85;
+                document.getElementById('humidityTolerance').value = config.humidityTolerance || 3;
+                document.getElementById('mistPulseOn').value = config.mistPulseOn || 3000;
+                document.getElementById('mistPulseOff').value = config.mistPulseOff || 5000;
+                document.getElementById('mistMaxDuration').value = config.mistMaxDuration || 30000;
+                document.getElementById('co2Threshold').value = config.co2Threshold || 800;
+                document.getElementById('tempFanOn').value = config.tempFanOn || 30;
+                document.getElementById('tempFanOff').value = config.tempFanOff || 28;
+                document.getElementById('mq135_r0').value = config.mq135_r0 || 15;
+                document.getElementById('waterFlowRate').value = config.waterFlowRate || 2.5;
+                document.getElementById('fanPower').value = config.fanPower || 15;
+                document.getElementById('yieldKg').value = config.yieldKg || 0;
+
+                localStorage.setItem('mushroomConfig', JSON.stringify(config));
+
+                const status = document.getElementById('configStatus');
+                status.textContent = '✅ Config loaded from sheet!';
+                status.style.color = '#2ecc71';
+                setTimeout(() => status.textContent = '', 3000);
+
+                if (allData.length > 0) calculateSustainability(allData);
+            } catch (error) {
+                console.error('Error loading config:', error);
+                const status = document.getElementById('configStatus');
+                status.textContent = '❌ Failed to load config';
+                status.style.color = '#e74c3c';
+            }
+        }
+
+        function loadConfig() {
+            const saved = localStorage.getItem('mushroomConfig');
+            if (saved) {
+                try {
+                    const config = JSON.parse(saved);
+                    Object.keys(config).forEach(key => {
+                        const el = document.getElementById(key);
+                        if (el) el.value = config[key];
+                    });
+                } catch (e) {}
+            }
+        }
+
         // ===== INITIALIZE =====
+        connectMQTT();
         loadConfig();
         fetchData();
         updateInterval = setInterval(fetchData, 10000);
 
         window.addEventListener('beforeunload', () => {
             if (updateInterval) clearInterval(updateInterval);
+            if (mqttClient) mqttClient.end();
         });
     </script>
 </body>
