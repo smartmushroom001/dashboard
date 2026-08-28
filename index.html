@@ -331,21 +331,60 @@
             text-transform: uppercase;
             letter-spacing: 1px;
         }
-        .alarm-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 6px 10px;
-            border-radius: 6px;
-            margin-bottom: 4px;
-            font-size: 0.75rem;
-            background: rgba(255,255,255,0.02);
-            border-left: 3px solid #555;
-        }
-        .alarm-item.active { border-left-color: #e74c3c; background: rgba(231,76,60,0.05); }
-        .alarm-item.cleared { border-left-color: #2ecc71; background: rgba(46,204,113,0.05); opacity: 0.6; }
-        .alarm-item .time { color: #555; font-size: 0.65rem; }
-        .alarm-item .zone-tag { font-size: 0.55rem; padding: 1px 8px; border-radius: 10px; background: rgba(255,255,255,0.05); }
+        /* ===== ALARM LIST - UNIFORM ITEMS ===== */
+.alarm-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    font-size: 0.75rem;
+    background: rgba(255,255,255,0.02);
+    border-left: 3px solid #555;
+    gap: 8px; /* jarak antara elemen */
+}
+
+/* Mesej alarm - mengambil ruang fleksibel */
+.alarm-item .message {
+    flex: 1; /* akan mengambil ruang yang ada */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; /* jika terlalu panjang, akan dipotong dengan ... */
+    min-width: 0; /* penting untuk flex ellipsis */
+}
+
+/* Masa - lebar tetap */
+.alarm-item .time {
+    color: #555;
+    font-size: 0.65rem;
+    width: 80px; /* lebar tetap untuk masa */
+    text-align: right;
+    flex-shrink: 0;
+}
+
+/* Tag zone - lebar tetap */
+.alarm-item .zone-tag {
+    font-size: 0.55rem;
+    padding: 2px 10px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.05);
+    width: 60px; /* lebar tetap untuk tag zone */
+    text-align: center;
+    flex-shrink: 0;
+}
+
+/* Warna status (aktif vs cleared) */
+.alarm-item.active {
+    border-left-color: #e74c3c;
+    background: rgba(231,76,60,0.05);
+}
+
+.alarm-item.cleared {
+    border-left-color: #2ecc71;
+    background: rgba(46,204,113,0.05);
+    opacity: 0.6;
+}
         .empty-state { text-align: center; color: #555; padding: 20px; font-size: 0.8rem; }
 
         .config-grid {
@@ -365,26 +404,54 @@
             letter-spacing: 1px;
             margin-bottom: 10px;
         }
-        .config-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 5px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.03);
-        }
-        .config-item label { font-size: 0.75rem; color: #aaa; }
-        .config-item input {
-            width: 70px;
-            padding: 3px 6px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 4px;
-            color: #fff;
-            font-size: 0.75rem;
-            text-align: center;
-        }
-        .config-item input:focus { outline: none; border-color: #f5576c; }
-        .config-item .unit { color: #555; font-size: 0.65rem; margin-left: 4px; }
+/* ===== CONFIGURATION - UNIFORM UNIT WIDTH ===== */
+.config-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.config-item label {
+    font-size: 0.75rem;
+    color: #aaa;
+    flex: 1; /* label akan mengambil ruang yang ada */
+}
+
+.config-item > div {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0; /* elakkan div daripada mengecut */
+}
+
+.config-item input {
+    width: 70px;
+    padding: 3px 6px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 4px;
+    color: #fff;
+    font-size: 0.75rem;
+    text-align: center;
+}
+
+.config-item input:focus {
+    outline: none;
+    border-color: #f5576c;
+}
+
+/* ===== UNIT - LEBAR SERAGAM ===== */
+.config-item .unit {
+    display: inline-block;
+    width: 45px;          /* ← lebar tetap untuk semua unit */
+    text-align: left;     /* atau 'right' jika mahu sejajar ke kanan */
+    color: #555;
+    font-size: 0.65rem;
+    margin-left: 2px;
+    flex-shrink: 0;       /* elakkan unit daripada mengecut */
+}
         .config-actions {
             display: flex;
             gap: 10px;
@@ -975,7 +1042,7 @@
                                 <div class="unit">${z.exhaust ? 'Active' : 'Idle'}</div>
                             </div>
                         </div>
-                        <div class="control-status">
+                        <!--<div class="control-status">
                             <div class="control-item">
                                 <span class="label">🌫️ Mist</span>
                                 <span class="status ${z.mist ? 'misting' : 'off'}">${z.mist ? '🟢 ON' : '⭕ OFF'}</span>
@@ -988,7 +1055,7 @@
                                 <span class="label">💧 Water</span>
                                 <span class="status ${z.water === 0 ? 'alarm' : 'off'}">${z.water ? '✅ OK' : '🔴 EMPTY'}</span>
                             </div>
-                        </div>
+                        </div>-->
                         <div class="manual-control">
                             <span class="label">📡 Manual Control (MQTT)</span>
                             <div class="btn-group">
@@ -1297,6 +1364,7 @@
         connectMQTT();
         loadConfig();
         loadConfigFromSheet();
+        updateDashboard() 
         fetchAlarms();
 
         setInterval(() => {
