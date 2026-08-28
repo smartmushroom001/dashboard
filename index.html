@@ -55,6 +55,7 @@
         }
         .status-dot.online { background: #2ecc71; box-shadow: 0 0 10px #2ecc7155; }
         .status-dot.offline { background: #e74c3c; box-shadow: 0 0 10px #e74c3c55; }
+        .status-dot.warning { background: #f39c12; box-shadow: 0 0 10px #f39c1255; }
         .nav-bar {
             display: flex;
             justify-content: center;
@@ -449,7 +450,7 @@
 
         <div id="loading" class="loading">
             <div class="spinner"></div>
-            <p style="margin-top:15px;color:#555;">Loading system data...</p>
+            <p style="margin-top:15px;color:#555;">Connecting to MQTT...</p>
         </div>
 
         <div id="dashboard" style="display:none;">
@@ -463,6 +464,7 @@
                 <div class="status-item"><span id="alarmCount">🔔 Alarms: 0</span></div>
                 <div class="status-item"><span id="zoneStatus">🌫️ Mist: 0/3</span></div>
                 <div class="status-item"><span id="mqttStatus">📡 MQTT: Disconnected</span></div>
+                <div class="status-item"><span id="espStatus">ESP32: ⏳ Waiting</span></div>
             </div>
 
             <nav class="nav-bar">
@@ -517,7 +519,7 @@
                 </div>
             </div>
 
-            <!-- ===== SECTION 5: CONFIGURATION (PER ZONE) ===== -->
+            <!-- ===== SECTION 5: CONFIGURATION (PER ZONE + SAVE ALL) ===== -->
             <div id="section-config" class="section">
                 <div class="section-title">⚙️ Configuration <span class="badge">Per Zone Settings</span></div>
                 <div class="config-grid">
@@ -568,10 +570,7 @@
                 </div>
 
                 <div class="config-actions">
-                    <button class="config-btn save" onclick="publishZoneConfig(1)">📤 Publish Zone 1</button>
-                    <button class="config-btn save" onclick="publishZoneConfig(2)">📤 Publish Zone 2</button>
-                    <button class="config-btn save" onclick="publishZoneConfig(3)">📤 Publish Zone 3</button>
-                    <button class="config-btn save" onclick="publishAllConfig()">📤 Publish All Zones</button>
+                    <button class="config-btn save" onclick="saveAllConfig()">💾 Save All Config</button>
                     <button class="config-btn load" onclick="loadConfigFromSheet()">📥 Load from Sheet</button>
                     <button class="config-btn reset" onclick="resetConfig()">↩️ Reset Default</button>
                 </div>
@@ -599,34 +598,26 @@
         // =====================================================
         let chart = null;
         let updateInterval = null;
-        let allData = [];
         let currentParam = 'temp';
         let mqttClient = null;
         let mqttConnected = false;
+        let lastHeartbeat = 0;
+        let espOnline = false;
         let lastAlarmState = { z1: false, z2: false, z3: false };
         let lastMistState = { z1: false, z2: false, z3: false };
         let lastExhaustState = { z1: false, z2: false, z3: false };
-        let cumulativeWaterUsed = 0;
-        let cumulativeEnergyUsed = 0;
-        let lastDataLength = 0;
 
-        // =====================================================
-        // DATE FORMATTER
-        // =====================================================
-        const dateFormatter = new Intl.DateTimeFormat('en-MY', {
-            timeZone: 'Asia/Kuala_Lumpur',
-            day: '2-digit',
-            month: 'short',
-            year: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: true
-        });
+        const zoneData = {
+            z1: { temp: 0, hum: 0, co2: 0, water: 0, mist: 0, exhaust: 0, error: 0 },
+            z2: { temp: 0, hum: 0, co2: 0, water: 0, mist: 0, exhaust: 0, error: 0 },
+            z3: { temp: 0, hum: 0, co2: 0, water: 0, mist: 0, exhaust: 0, error: 0 }
+        };
+        let historyData = [];
 
-        // =====================================================
-        // CHART CONFIGS & LABELS
-        // =====================================================
+        const zoneLabels = ['Zone 1', 'Zone 2', 'Zone 3'];
+        const zonePositions = ['Top', 'Middle', 'Bottom'];
+        const zoneBadges = ['badge-top', 'badge-middle', 'badge-bottom'];
+
         const chartConfigs = {
             temp: { title: '📊 Temperature Trends (°C)', yLabel: 'Temperature (°C)', keys: ['z1_temp', 'z2_temp', 'z3_temp'], colors: ['#e74c3c', '#c0392b', '#e67e22'] },
             hum: { title: '📊 Humidity Trends (%)', yLabel: 'Humidity (%)', keys: ['z1_hum', 'z2_hum', 'z3_hum'], colors: ['#2ecc71', '#27ae60', '#1abc9c'] },
@@ -635,12 +626,8 @@
             exhaust: { title: '📊 Exhaust Active Status', yLabel: 'Exhaust (0/1)', keys: ['z1_exhaust', 'z2_exhaust', 'z3_exhaust'], colors: ['#9b59b6', '#8e44ad', '#6c3483'] }
         };
 
-        const zoneLabels = ['Zone 1', 'Zone 2', 'Zone 3'];
-        const zonePositions = ['Top', 'Middle', 'Bottom'];
-        const zoneBadges = ['badge-top', 'badge-middle', 'badge-bottom'];
-
         // =====================================================
-        // MQTT CONNECTION
+        // MQTT
         // =====================================================
         function connectMQTT() {
             try {
@@ -652,8 +639,6 @@
                     document.getElementById('mqttStatus').style.color = '#2ecc71';
                     document.getElementById('loading').style.display = 'none';
                     document.getElementById('dashboard').style.display = 'block';
-                    
-                    // Subscribe to sensor topics
                     mqttClient.subscribe('mushroom/zone1/sensors');
                     mqttClient.subscribe('mushroom/zone2/sensors');
                     mqttClient.subscribe('mushroom/zone3/sensors');
@@ -679,23 +664,19 @@
             }
         }
 
-        function sendMQTT(zone, device, state) {
-            if (!mqttConnected || !mqttClient) {
-                alert('MQTT not connected. Please wait or refresh.');
-                return;
-            }
-            const topic = `mushroom/zone${zone}/${device}/set`;
-            mqttClient.publish(topic, state);
-            console.log(`Sent ${state} to ${topic}`);
-        }
-
         // =====================================================
         // HANDLE MQTT MESSAGES
         // =====================================================
         function handleMQTTMessage(topic, payload) {
-            // Status topic
+            // Status topic - heartbeat
             if (topic === 'mushroom/status') {
-                document.getElementById('statusText').textContent = payload === 'online' ? '🟢 Online' : '🔴 Offline';
+                if (payload === 'online') {
+                    lastHeartbeat = Date.now();
+                    espOnline = true;
+                    document.getElementById('espStatus').textContent = 'ESP32: 🟢 Online';
+                    document.getElementById('espStatus').style.color = '#2ecc71';
+                    document.getElementById('statusDot').className = 'status-dot online';
+                }
                 return;
             }
 
@@ -717,12 +698,6 @@
         // =====================================================
         // UPDATE ZONE DATA
         // =====================================================
-        const zoneData = {
-            z1: { temp: 0, hum: 0, co2: 0, water: 0, mist: 0, exhaust: 0, error: 0 },
-            z2: { temp: 0, hum: 0, co2: 0, water: 0, mist: 0, exhaust: 0, error: 0 },
-            z3: { temp: 0, hum: 0, co2: 0, water: 0, mist: 0, exhaust: 0, error: 0 }
-        };
-
         function updateZoneData(zoneKey, data) {
             const z = zoneData[zoneKey];
             z.temp = data.temp || 0;
@@ -733,7 +708,6 @@
             z.exhaust = data.exhaust || 0;
             z.error = data.error || 0;
 
-            // Add to history for charts
             const timestamp = new Date().toISOString();
             historyData.push({
                 timestamp: timestamp,
@@ -749,9 +723,26 @@
 
             updateDashboard();
             updateSustainability();
+
+            // Update ESP status if receiving data
+            espOnline = true;
+            document.getElementById('espStatus').textContent = 'ESP32: 🟢 Online';
+            document.getElementById('espStatus').style.color = '#2ecc71';
+            document.getElementById('statusDot').className = 'status-dot online';
         }
 
-        let historyData = [];
+        // =====================================================
+        // CHECK ESP STATUS (Heartbeat timeout)
+        // =====================================================
+        function checkESPStatus() {
+            const now = Date.now();
+            if (espOnline && (now - lastHeartbeat > 60000)) {
+                espOnline = false;
+                document.getElementById('espStatus').textContent = 'ESP32: 🔴 Offline';
+                document.getElementById('espStatus').style.color = '#e74c3c';
+                document.getElementById('statusDot').className = 'status-dot offline';
+            }
+        }
 
         // =====================================================
         // NOTIFICATION
@@ -766,7 +757,7 @@
         }
 
         // =====================================================
-        // FETCH ALARMS USING GVIZ
+        // FETCH ALARMS
         // =====================================================
         async function fetchAlarms() {
             try {
@@ -910,7 +901,6 @@
                 const z = zoneData[key];
                 const idx = i + 1;
 
-                // Alarm notification
                 if (z.water === 0 && !lastAlarmState[key]) {
                     sendNotification(`🔴 Alarm Zone ${idx}`, 'Water level empty!');
                     lastAlarmState[key] = true;
@@ -1092,10 +1082,9 @@
             const fanPower = parseFloat(document.getElementById('fanPower')?.value) || 15;
             const yieldKg = parseFloat(document.getElementById('yieldKg')?.value) || 0;
 
-            // Calculate from history data
             let totalMistRuntime = 0;
             let totalFanRuntime = 0;
-            const intervalSeconds = 3; // MQTT interval
+            const intervalSeconds = 3;
 
             for (let i = 0; i < historyData.length; i++) {
                 const d = historyData[i];
@@ -1141,6 +1130,16 @@
         // =====================================================
         // CONFIGURATION FUNCTIONS
         // =====================================================
+        function sendMQTT(zone, device, state) {
+            if (!mqttConnected || !mqttClient) {
+                alert('MQTT not connected. Please wait or refresh.');
+                return;
+            }
+            const topic = `mushroom/zone${zone}/${device}/set`;
+            mqttClient.publish(topic, state);
+            console.log(`Sent ${state} to ${topic}`);
+        }
+
         function getZoneConfig(zone) {
             const prefix = `z${zone}_`;
             return {
@@ -1165,43 +1164,47 @@
             };
         }
 
-        function publishZoneConfig(zone) {
+        function saveAllConfig() {
             if (!mqttConnected || !mqttClient) {
                 document.getElementById('configStatus').textContent = '❌ MQTT not connected!';
                 document.getElementById('configStatus').style.color = '#e74c3c';
                 return;
             }
 
-            const config = getZoneConfig(zone);
-            const topic = `mushroom/config/zone${zone}/set`;
-            mqttClient.publish(topic, JSON.stringify(config));
+            // Publish each zone config
+            for (let z = 1; z <= 3; z++) {
+                const config = getZoneConfig(z);
+                const topic = `mushroom/config/zone${z}/set`;
+                mqttClient.publish(topic, JSON.stringify(config));
+            }
+
+            // Save global config
+            const globalConfig = getGlobalConfig();
+            const globalTopic = 'mushroom/config/set';
+            mqttClient.publish(globalTopic, JSON.stringify(globalConfig));
 
             // Also save to Google Sheets
-            saveConfigToSheet(zone);
+            saveConfigToSheet();
 
-            document.getElementById('configStatus').textContent = `✅ Zone ${zone} config published to ESP32!`;
+            document.getElementById('configStatus').textContent = '✅ All config saved to ESP32 & Google Sheets!';
             document.getElementById('configStatus').style.color = '#2ecc71';
             setTimeout(() => document.getElementById('configStatus').textContent = '', 3000);
         }
 
-        function publishAllConfig() {
-            for (let i = 1; i <= 3; i++) {
-                publishZoneConfig(i);
+        function saveConfigToSheet() {
+            const allConfig = {};
+            for (let z = 1; z <= 3; z++) {
+                const zoneConfig = getZoneConfig(z);
+                allConfig[`z${z}_targetHumidity`] = zoneConfig.targetHumidity;
+                allConfig[`z${z}_humidityTolerance`] = zoneConfig.humidityTolerance;
+                allConfig[`z${z}_co2Threshold`] = zoneConfig.co2Threshold;
+                allConfig[`z${z}_tempFanOn`] = zoneConfig.tempFanOn;
+                allConfig[`z${z}_tempFanOff`] = zoneConfig.tempFanOff;
+                allConfig[`z${z}_lowHumAlarm`] = zoneConfig.lowHumAlarm;
             }
-        }
-
-        function saveConfigToSheet(zone) {
-            const zoneConfig = getZoneConfig(zone);
             const globalConfig = getGlobalConfig();
-
-            const config = {
+            Object.assign(allConfig, {
                 type: 'config',
-                [`z${zone}_targetHumidity`]: zoneConfig.targetHumidity,
-                [`z${zone}_humidityTolerance`]: zoneConfig.humidityTolerance,
-                [`z${zone}_co2Threshold`]: zoneConfig.co2Threshold,
-                [`z${zone}_tempFanOn`]: zoneConfig.tempFanOn,
-                [`z${zone}_tempFanOff`]: zoneConfig.tempFanOff,
-                [`z${zone}_lowHumAlarm`]: zoneConfig.lowHumAlarm,
                 mistPulseOn: globalConfig.mistPulseOn,
                 mistPulseOff: globalConfig.mistPulseOff,
                 mistMaxDuration: globalConfig.mistMaxDuration,
@@ -1209,13 +1212,13 @@
                 fanPower: globalConfig.fanPower,
                 yieldKg: globalConfig.yieldKg,
                 mq135_r0: globalConfig.mq135_r0
-            };
+            });
 
             fetch(APPS_SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(config)
+                body: JSON.stringify(allConfig)
             });
         }
 
@@ -1265,7 +1268,6 @@
                 document.getElementById('mq135_r0').value = config.mq135_r0 || 15;
 
                 localStorage.setItem('mushroomConfig', JSON.stringify(config));
-
                 document.getElementById('configStatus').textContent = '✅ Config loaded from sheet!';
                 document.getElementById('configStatus').style.color = '#2ecc71';
                 setTimeout(() => document.getElementById('configStatus').textContent = '', 3000);
@@ -1296,13 +1298,12 @@
         loadConfig();
         fetchAlarms();
 
-        updateInterval = setInterval(() => {
+        setInterval(() => {
+            checkESPStatus();
             fetchAlarms();
-            // Data comes via MQTT, no need to fetch sensor data separately
         }, 10000);
 
         window.addEventListener('beforeunload', () => {
-            if (updateInterval) clearInterval(updateInterval);
             if (mqttClient) mqttClient.end();
         });
     </script>
